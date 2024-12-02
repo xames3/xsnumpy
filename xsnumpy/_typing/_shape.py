@@ -4,7 +4,7 @@ xsNumPy Shape Typing Implementation
 
 Author: Akshay Mestry <xa@mes3.dev>
 Created on: Monday, November 25 2024
-Last updated on: Wednesday, November 27 2024
+Last updated on: Monday, December 02 2024
 
 This module provides type definitions specifically designed to handle
 shape  information in the xsNumPy library. Shapes are a fundamental
@@ -25,6 +25,8 @@ from __future__ import annotations
 
 import typing as t
 from collections.abc import Sequence
+
+__all__: list[str] = ["_Shape", "_ShapeLike"]
 
 _Shape: t.TypeAlias = tuple[int, ...]
 _ShapeLike: t.TypeAlias = t.SupportsIndex | Sequence[t.SupportsIndex]

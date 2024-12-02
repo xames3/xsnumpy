@@ -4,7 +4,7 @@ xsNumPy DType Typing Implementation
 
 Author: Akshay Mestry <xa@mes3.dev>
 Created on: Monday, November 25 2024
-Last updated on: Wednesday, November 27 2024
+Last updated on: Monday, December 02 2024
 
 This module is a key component in the xsNumPy library, providing
 essential type annotations and typing constructs to ensure a robust and
@@ -37,6 +37,13 @@ from __future__ import annotations
 import typing as t
 
 from ._shape import _ShapeLike
+
+__all__: list[str] = [
+    "DTypeLike",
+    "_DTypeLikeNested",
+    "_OrderKACF",
+    "_VoidDTypeLike",
+]
 
 _OrderKACF: t.TypeAlias = t.Literal[None, "K", "A", "C", "F"]
 _DTypeLikeNested: t.TypeAlias = t.Any

@@ -4,7 +4,7 @@ xsNumPy Typing Entrypoint
 
 Author: Akshay Mestry <xa@mes3.dev>
 Created on: Monday, November 25 2024
-Last updated on: Wednesday, November 27 2024
+Last updated on: Monday, December 02 2024
 
 This module serves as the core entry point for all type-related
 constructs within the xsNumPy library, consolidating and exposing key
@@ -26,20 +26,7 @@ pollution.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from ._dtype_like import *
+from ._shape import *
 
-from ._dtype_like import DTypeLike
-from ._dtype_like import _DTypeLikeNested
-from ._dtype_like import _OrderKACF
-from ._dtype_like import _VoidDTypeLike
-from ._shape import _Shape
-from ._shape import _ShapeLike
-
-__all__: Sequence[str] = (
-    "DTypeLike",
-    "_DTypeLikeNested",
-    "_OrderKACF",
-    "_VoidDTypeLike",
-    "_Shape",
-    "_ShapeLike",
-)
+__all__: list[str] = _dtype_like.__all__ + _shape.__all__

@@ -4,7 +4,7 @@ xsNumPy DType Implementation
 
 Author: Akshay Mestry <xa@mes3.dev>
 Created on: Monday, November 18 2024
-Last updated on: Sunday, December 01 2024
+Last updated on: Monday, December 02 2024
 
 This module provides the foundational implementation of the
 `xsnumpy._core._dtype` system, enabling flexible and type-safe handling
@@ -36,9 +36,25 @@ import ctypes
 import typing as t
 from collections import namedtuple
 
+__all__: list[str] = [
+    "_common_types",
+    "_convert_dtype",
+    "bool",
+    "float",
+    "float64",
+    "int16",
+    "int32",
+    "int64",
+    "int8",
+    "uint16",
+    "uint32",
+    "uint64",
+    "uint8",
+]
+
 _dtype = namedtuple("_dtype", "kind, name, itemsize")
 
-_dtypes: tuple[_dtype, ...] = (
+_supported_dtypes: tuple[_dtype, ...] = (
     (bool := _dtype("b1", "bool", ctypes.c_bool)),
     (int8 := _dtype("i1", "int8", ctypes.c_int8)),
     (uint8 := _dtype("u1", "uint8", ctypes.c_uint8)),
@@ -51,6 +67,7 @@ _dtypes: tuple[_dtype, ...] = (
     (float := _dtype("f4", "float", ctypes.c_float)),
     (float64 := _dtype("f8", "float64", ctypes.c_double)),
 )
+_common_types: list[str] = [_dtype.name for _dtype in _supported_dtypes]
 
 
 def _convert_dtype(
@@ -69,12 +86,12 @@ def _convert_dtype(
     :param dtype: The input data type to be converted. If `None`, the
         function returns `None` else, the input is expected to be
         convertible to a string and should match one of the predefined
-        types in the `_dtypes` tuples.
+        types in the `_supported_dtypes` tuple.
     :param to: The target format for the data type conversion, defaults
         to `numpy`.
     :return: The converted data type in the requested format. If the
-        input `dtype` is not found in the `_dtypes` tuple, the function
-        returns the original input value as is.
+        input `dtype` is not found in the `_supported_dtypes` tuple, the
+        function returns the original input value as is.
     :raises ValueError: If the `to` parameter is not one of the accepted
         values.
     """
@@ -86,7 +103,7 @@ def _convert_dtype(
     except KeyError:
         raise ValueError(f"Invalid conversion target: {to!r}")
     else:
-        for _dtype in _dtypes:
+        for _dtype in _supported_dtypes:
             if dtype in _dtype:
                 return _dtype[idx]
     return dtype
