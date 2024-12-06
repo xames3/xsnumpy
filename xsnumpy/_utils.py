@@ -22,6 +22,7 @@ if t.TYPE_CHECKING:
     from xsnumpy import ndarray
 
 __all__: list[str] = [
+    "calc_shape_from_obj",
     "calc_size",
     "calc_strides",
     "get_step_size",
@@ -107,3 +108,33 @@ def get_step_size(view: ndarray) -> int:
     step_size = view.strides[-1] // contiguous_strides[-1]
     strides = tuple(stride * step_size for stride in contiguous_strides)
     return step_size if view.strides == strides else 0
+
+
+def calc_shape_from_obj(object: t.Any) -> tuple[int, ...]:
+    """Calculate the shape of a nested iterable object.
+
+    This function recursively determines the dimensions of a nested
+    structure, such as a list of lists, and returns its shape as a tuple
+    of integers.
+
+    :param object: The input object whose shape is to be determined. It
+        can be a nested iterable or any other type.
+    :return: A tuple representing the shape of the object.
+    """
+    shape: list[int] = []
+
+    def _calc_shape(elements: t.Any, axis: int) -> None:
+        """Helper function to calculate shape recursively."""
+        if isinstance(elements, t.Sized) and not isinstance(
+            elements, (str, bytes)
+        ):
+            if len(shape) <= axis:
+                shape.append(0)
+            current_len = len(elements)
+            if current_len > shape[axis]:
+                shape[axis] = current_len
+            for element in elements:
+                _calc_shape(element, axis + 1)
+
+    _calc_shape(object, 0)
+    return tuple(shape)

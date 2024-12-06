@@ -231,6 +231,32 @@ class ndarray:
         else:
             raise TypeError("Only arrays of size 1 can be converted to scalar")
 
+    def __int__(self) -> None | int:
+        """Convert the ndarray to a scalar int if it has exactly one
+        element.
+
+        This method attempts to convert an ndarray instance to a scalar
+        int. The conversion is only possible if the ndarray contains
+        exactly one element.
+        """
+        if self.size == 1:
+            return int(self.data[self._offset])
+        else:
+            raise TypeError("Only arrays of size 1 can be converted to scalar")
+
+    def __len__(self) -> int:
+        """Return the size of the first dimension of the array.
+
+        This implements the behavior of `len()` for the array object,
+        providing the number of elements in the first axis.
+
+        :return: Size of the first dimension.
+        :raises IndexError: If the array has no dimensions.
+        """
+        if not self.shape:
+            raise IndexError("Array has no dimensions")
+        return self.shape[0]
+
     def __getitem__(
         self, key: int | slice | tuple[int | slice | None, ...]
     ) -> t.Any | "ndarray":
@@ -377,6 +403,35 @@ class ndarray:
         strides.extend(self._strides[axis:])
         return offset, tuple(shape), tuple(strides)
 
+    def _flat(self) -> list[int | builtins.float]:
+        """Flatten the ndarray and return all its elements in a list.
+
+        This method traverses through the ndarray and collects its
+        elements into a single list, regardless of its shape or
+        dimensionality. It handles contiguous memory layouts and
+        non-contiguous slices, ensuring that all elements of the ndarray
+        are included in the returned list.
+
+        :return: A list containing all elements in the ndarray.
+        """
+        values: list[int | builtins.float] = []
+        subviews = [self]
+        while subviews:
+            subview = subviews.pop(0)
+            step_size = get_step_size(subview)
+            if step_size:
+                values += self._data[
+                    slice(
+                        subview._offset,
+                        subview._offset + subview.size * step_size,
+                        step_size,
+                    )
+                ]
+            else:
+                for dim in range(subview.shape[0]):
+                    subviews.append(subview[dim])
+        return values
+
     @property
     def shape(self) -> tuple[int, ...]:
         """Return shape of the array."""
@@ -421,3 +476,113 @@ class ndarray:
     def data(self) -> t.Any:
         """Return the memory buffer holding the array elements."""
         return self._data
+
+    @property
+    def flat(self) -> t.Generator[int | builtins.float]:
+        """Flatten the ndarray and yield its elements one by one.
+
+        This property allows you to iterate over all elements in the
+        ndarray, regardless of its shape or dimensionality, in a
+        flattened order. It yields the elements one by one, similar to
+        Python's built-in `iter()` function, and handles both contiguous
+        and non-contiguous memory layouts.
+
+        :yields: The elements of the ndarray in row-major (C-style)
+            order.
+
+        .. note::
+
+            [1] If the ndarray has non-contiguous strides, the method
+                correctly handles the retrieval of elements using the
+                appropriate step size.
+            [2] The method uses a generator to yield elements lazily,
+                which can be more memory-efficient for large arrays.
+        """
+        subviews = [self]
+        while subviews:
+            subview = subviews.pop(0)
+            step_size = get_step_size(subview)
+            if step_size:
+                for dim in self._data[
+                    slice(
+                        subview._offset,
+                        subview._offset + subview.size * step_size,
+                        step_size,
+                    )
+                ]:
+                    yield dim
+            else:
+                for dim in range(subview.shape[0]):
+                    subviews.append(subview[dim])
+
+    def fill(self, value: int | builtins.float) -> None:
+        """Fill the entire ndarray with a scalar value.
+
+        This method assigns the given scalar value to all elements in
+        the ndarray. The operation modifies the array in place and
+        supports both integers and floating-point numbers as input.
+
+        :param value: The scalar value to fill the ndarray with.
+        :raises ValueError: If the provided `value` is not an integer
+            or floating-point number.
+
+        .. note::
+
+            [1] This method modifies the ndarray in place.
+            [2] The method uses slicing (`self[:] = value`) to
+                efficiently set all elements to the specified value.
+        """
+        if not isinstance(value, (int, builtins.float)):
+            raise ValueError("Value must be an integer or a float")
+        self[:] = value
+
+    def view(
+        self,
+        dtype: DTypeLike | None = None,
+        type: t.Any | None = None,
+    ) -> ndarray | None:
+        """Create a new view of the ndarray with a specified data type.
+
+        This method allows creating a new ndarray view with a specified
+        `dtype`. If no `dtype` is provided, the existing dtype of the
+        array is used. The method supports efficient reinterpretation of
+        the data buffer and respects the shape and strides of the
+        original array. For 1D arrays, the dtype can differ if the total
+        number of bytes remains consistent.
+
+        :param dtype: The desired data type for the new view. If not
+            provided, the current dtype is used.
+        :param type: Ignored in this implementation.
+        :return: A new ndarray view with the specified dtype. Returns
+            `None` if the view cannot be created.
+        :raises ValueError: If the array is multidimensional and the
+            requested `dtype` differs from the current `dtype`.
+
+        .. note::
+
+            [1] For 1D arrays, changing the `dtype` adjusts the size
+                based on the ratio of original item size to the new
+                dtype's item size.
+            [2] For multidimensional arrays, a new dtype must match the
+                original dtype.
+            [3] This method does not support modifying the `type`
+                parameter, which is reserved for potential future
+                extensions (most probably).
+        """
+        if dtype is None:
+            dtype = self.dtype
+        if dtype == self.dtype:
+            return ndarray(
+                self.shape,
+                dtype,
+                buffer=self,
+                offset=self._offset,
+                strides=self.strides,
+            )
+        elif self.ndim == 1:
+            itemsize = int(_convert_dtype(dtype, "short")[-1])
+            size = self.nbytes // itemsize
+            offset = (self._offset * self.itemsize) // itemsize
+            return ndarray((size,), dtype, buffer=self, offset=offset)
+        else:
+            raise ValueError("Arrays can only be viewed with the same dtype")
