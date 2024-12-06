@@ -8,10 +8,9 @@ Last updated on: Thursday, December 05 2024
 
 This module provides utility functions designed to streamline and
 enhance the development process within the xsNumPy library. These
-utilities include decorators and helper functions that improve code
-organization, modularity, and introspection. By encapsulating reusable
-patterns and functionality, this module promotes clean, maintainable,
-and efficient code throughout the library.
+utilities include helper functions that improve code organization,
+modularity, and introspection. These utilities focus on enhancing code
+modularity and enabling type-safe operations.
 """
 
 from __future__ import annotations
@@ -19,45 +18,43 @@ from __future__ import annotations
 import typing as t
 
 __all__: list[str] = [
-    "as_strided",
+    "calc_strides",
 ]
 
 
-def as_strided(
+def calc_strides(
     shape: t.Sequence[int],
     itemsize: int,
 ) -> tuple[int, ...]:
-    """Calculate memory strides for a multi-dimensional array.
+    """Calculate strides for traversing a multi-dimensional array.
 
-    Strides represent the step size in bytes to traverse along each
-    dimension of an array in memory. This function computes the strides
-    for a given array shape and element size, assuming a row-major
-    (C-style) memory layout. In this layout, the last axis is contiguous
-    in memory and changes the fastest.
+    Strides determine the step size (in bytes) required to move to the
+    next element along each dimension of an array in memory. This
+    function calculates strides assuming a row-major (C-style) memory
+    layout, where the last dimension is contiguous in memory and changes
+    the fastest.
+
+    :param shape: The dimensions of the array. Each integer specifies the
+        size along a particular dimension.
+    :param itemsize: The size (in bytes) of a single array element.
+        Typically determined by the data type.
+    :return: A tuple of integers representing the strides, in bytes, for
+        each dimension of the array. The order of the strides
+        corresponds to the input `shape`, starting with the first
+        dimension.
 
     .. note::
 
-        [1] This function mimics the stride computation logic of NumPy's
-            internal memory model for arrays. In particular, it aligns
-            with the default C-style (row-major) layout used in NumPy
-            when creating arrays.
-        [2] Unlike `numpy.lib.stride_tricks.as_strided`, this
-            implementation focuses solely on computing strides based on
-            shape and element size without introducing functionality to
-            create new views of arrays with custom strides.
+        Similarities with NumPy::
+            [1] Aligns with NumPy's C-style (row-major) memory layout
+                for stride computation.
+            [2] Matches the behavior of NumPy when initializing arrays
+                with default settings.
 
-    NumPy's version allows for advanced memory manipulation, while this
-    implementation is a simpler, type-safe calculation utility.
-
-    :param shape: The dimensions of the array, given as a sequence of
-        integers. Each integer represents the size of the array along
-        that dimension.
-    :param itemsize: The size, in bytes, of a single array element. This
-        is typically determined by the data type (e.g., 4 bytes for a
-        32-bit integer).
-    :return: A tuple of integers representing the strides, in bytes, for
-        each dimension of the array. The order of the strides
-        corresponds to the input shape.
+        Differences from NumPy::
+            [1] Unlike NumPy's `as_strided`, this function does not
+                create array views or manipulate memory. It focuses
+                solely on stride computation.
     """
     strides: list[int] = []
     stride: int = itemsize
