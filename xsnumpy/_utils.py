@@ -4,7 +4,7 @@ xsNumPy Utilities
 
 Author: Akshay Mestry <xa@mes3.dev>
 Created on: Monday, November 25 2024
-Last updated on: Thursday, December 05 2024
+Last updated on: Friday, December 06 2024
 
 This module provides utility functions designed to streamline and
 enhance the development process within the xsNumPy library. These
@@ -15,10 +15,16 @@ modularity and enabling type-safe operations.
 
 from __future__ import annotations
 
+import math
 import typing as t
 
+if t.TYPE_CHECKING:
+    from xsnumpy import ndarray
+
 __all__: list[str] = [
+    "calc_size",
     "calc_strides",
+    "get_step_size",
 ]
 
 
@@ -62,3 +68,42 @@ def calc_strides(
         strides.append(stride)
         stride *= dim
     return tuple(reversed(strides))
+
+
+def calc_size(shape: t.Sequence[int]) -> int:
+    """Calculate the total number of elements in an array given its
+    shape.
+
+    This function computes the product of the dimensions in the shape
+    sequence, which corresponds to the total size (or number of
+    elements) of a multidimensional array.
+
+    :param shape: The dimensions of the array. Each integer specifies the
+        size along a particular dimension.
+    :return: The total number of elements in the array.
+    """
+    return math.prod(shape)
+
+
+def get_step_size(view: ndarray) -> int:
+    """Compute the step size to traverse an array.
+
+    This function calculates the step size based on the strides of the
+    given view. If the view is C-contiguous (i.e., the last axis of the
+    array is stored contiguously in memory), the step size will be 1. IF
+    the array's strides are not contiguous, it returns 0.
+
+    :param view: The array view whose step size and contiguity are to be
+        determined.
+    :return: A step size indicating whether the array is C-contiguous or
+        not. 1 meaning contiguous else 0.
+
+    .. note::
+
+        This function assumes row-major (C-style) memory layout when
+        checking for contiguity.
+    """
+    contiguous_strides = calc_strides(view.shape, view.itemsize)
+    step_size = view.strides[-1] // contiguous_strides[-1]
+    strides = tuple(stride * step_size for stride in contiguous_strides)
+    return step_size if view.strides == strides else 0
