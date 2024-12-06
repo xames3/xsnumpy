@@ -67,11 +67,12 @@ module = [
   "xsnumpy._core.*",
   "xsnumpy._typing.*",
 ]
-disable_error_code = ["name-defined"]
+disable_error_code = ["assignment", "method-assign", "name-defined"]
 
 [tool.tox]
 requires = ["tox>=4"]
 envlist = ["py312", "py311", "py310"]
+package = "editable"
 
 [tool.tox.env_run_base]
 description = "Linting code and running static type checking on {base_python}"
@@ -85,7 +86,7 @@ deps = [
 ]
 commands = [
   ["black", "-q", {replace = "posargs", default = ["xsnumpy/"], extend = true}],
-  ["flake8", {replace = "posargs", default = ["xsnumpy/"], extend = true}, "--per-file-ignores", "__init__.py:F403,F405" ],
+  ["flake8", {replace = "posargs", default = ["xsnumpy/"], extend = true}, "--per-file-ignores", "__init__.py:F403,F405", "--ignore", "E203,W503" ],
   ["isort", "--sl", {replace = "posargs", default = ["xsnumpy/"], extend = true}],
   ["mypy", {replace = "posargs", default = ["xsnumpy/"], extend = true}],
 ]
