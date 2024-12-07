@@ -1,10 +1,10 @@
 """\
-xsNumPy Core Functions
-======================
+xsNumPy Array Functions
+=======================
 
 Author: Akshay Mestry <xa@mes3.dev>
 Created on: Friday, December 06 2024
-Last updated on: Friday, December 06 2024
+Last updated on: Saturday, December 07 2024
 
 This module provides core functionality to create and manipulate xsNumPy
 arrays.
@@ -12,26 +12,17 @@ arrays.
 
 from __future__ import annotations
 
+import math
 import typing as t
 
+from xsnumpy import array_function_dispatch
+from xsnumpy import ndarray
 from xsnumpy._typing import DTypeLike
 from xsnumpy._typing import _OrderKACF
 from xsnumpy._typing import _ShapeLike
 
-if t.TYPE_CHECKING:
-    from xsnumpy import ndarray
 
-__all__: list[str] = [
-    "arange",
-    "empty",
-    "eye",
-    "ones",
-    "ones_like",
-    "zeros",
-    "zeros_like",
-]
-
-
+@array_function_dispatch
 def empty(
     shape: _ShapeLike,
     dtype: DTypeLike | None = None,
@@ -57,11 +48,12 @@ def empty(
         [1] The contents of the returned array are random and should
             not be used without proper initialization.
     """
-    from xsnumpy import ndarray
-
+    if not isinstance(shape, t.Iterable):
+        shape = (shape,)
     return ndarray(shape, dtype, order=order)
 
 
+@array_function_dispatch
 def zeros(
     shape: _ShapeLike,
     dtype: DTypeLike | None = None,
@@ -86,6 +78,7 @@ def zeros(
     return empty(shape, dtype, order)
 
 
+@array_function_dispatch
 def zeros_like(
     a: ndarray,
     dtype: DTypeLike | None = None,
@@ -112,6 +105,7 @@ def zeros_like(
     return zeros(a.shape, dtype, order)
 
 
+@array_function_dispatch
 def ones(
     shape: _ShapeLike,
     dtype: DTypeLike | None = None,
@@ -138,6 +132,7 @@ def ones(
     return arr
 
 
+@array_function_dispatch
 def ones_like(
     a: ndarray,
     dtype: DTypeLike | None = None,
@@ -164,8 +159,10 @@ def ones_like(
     return ones(a.shape, dtype, order)
 
 
+@array_function_dispatch
 def eye(
-    size: int,
+    N: int,
+    M: int | None = None,
     dtype: DTypeLike | None = None,
     order: None | _OrderKACF = None,
 ) -> ndarray:
@@ -174,26 +171,115 @@ def eye(
 
     The `eye` function generates a square array of the specified size
     with ones on its main diagonal (from the top-left to the bottom-
-    right corner) and zeros elsewhere. The data type and memory layout
-    of the array can be customized.
+    right corner) and zeros elsewhere.
 
-    :param size: The number of rows and columns of the identity matrix.
-        This determines the shape `(size, size)` of the returned array.
+    :param N: The number of rows of the identity matrix.
+    :param M: The number of columns of the identity matrix, defaults to
+        `None` meaning M == N.
     :param dtype: The desired data type of the output array, defaults to
         `None`.
     :param order: The desired memory layout for the output array,
         defaults to `None`.
-    :return: A square identity matrix of shape `(size, size)`.
+    :return: A square identity matrix of shape `(N, N)`.
     """
-    if size <= 0:
+    if N <= 0:
         raise ValueError("Size must be a positive integer")
-    arr = zeros((size, size), dtype, order)
-    for idx in range(size):
+    if M is None:
+        M = N
+    arr = zeros((N, M), dtype, order)
+    for idx in range(N):
         arr[idx, idx] = 1
     return arr
 
 
-# TODO(xames3): Try to implement or support floating point step size.
+identity = array_function_dispatch(eye)
+
+
+@array_function_dispatch
+def tri(
+    N: int,
+    M: int | None = None,
+    k: int = 0,
+    dtype: DTypeLike | None = None,
+    order: None | _OrderKACF = None,
+) -> ndarray:
+    """Generate a lower triangular matrix with ones below and on the
+    main diagonal, and zeros elsewhere.
+
+    The function creates a two-dimensional array with the specified
+    dimensions. The elements below and on the main diagonal are set to
+    1, while the elements above the diagonal are set to 0.
+
+    :param N: The number of rows of the identity matrix.
+    :param M: The number of columns of the identity matrix, defaults to
+        `None` meaning M == N.
+    :param k: Diagonal offset, defaults to 0.
+    :param dtype: The desired data type of the output array, defaults to
+        `None`.
+    :param order: The desired memory layout for the output array,
+        defaults to `None`.
+    :return: A 2D array of shape `(N, M)` where the elements below and
+        on the main diagonal are 1, and the elements above the diagonal
+        are 0.
+    """
+    if N <= 0:
+        raise ValueError("Size must be a positive integer")
+    if M is None:
+        M = N
+    arr = zeros((N, M), dtype, order)
+    for idx in range(N):
+        start = max(0, idx + k)
+        end = min(M, idx + 1 + k)
+        if start < end:
+            arr[idx, start:end] = 1
+    return arr
+
+
+@array_function_dispatch
+def diag(v: ndarray, k: int = 0) -> ndarray:
+    """Extract the diagonal of a 2D array or construct a diagonal array.
+
+    If the input array `v` is 2-dimensional, this function extracts the
+    elements along the diagonal offset by `k`. If `v` is 1-dimensional,
+    it constructs a 2D array with the elements of `v` as the diagonal
+    offset by `k`.
+
+    :param v: Input array. Must be 1D or 2D.
+    :param k: Diagonal offset, defaults to 0.
+    :return: If `v` is 2D, returns a 1D array containing the elements of
+        the specified diagonal. If `v` is 1D, returns a 2D array with
+        the specified diagonal populated.
+    :raise ValueError: If the input array `v` is not 1D or 2D.
+    """
+    if v.ndim == 1:
+        size = v.shape[0]
+        result = zeros((size + abs(k), size + abs(k)), dtype=v.dtype)
+        for idx in range(size):
+            result[(idx + k, idx) if k < 0 else (idx, idx + k)] = v[idx]
+        return result
+    elif v.ndim == 2:
+        rows, cols = v.shape
+        if k >= 0:
+            start, end = k, min(rows, cols + k)
+            return ndarray(
+                (end - start,),
+                dtype=v.dtype,
+                buffer=v,
+                offset=k * v.strides[1],
+            )
+        else:
+            start, end = -k, min(rows + k, cols)
+            return ndarray(
+                (end - start,),
+                dtype=v.dtype,
+                buffer=v,
+                offset=-k * v.strides[0],
+            )
+    else:
+        raise ValueError("Input array must be 1D or 2D")
+
+
+@array_function_dispatch
 def arange(*args: t.Any, dtype: DTypeLike | None = None) -> ndarray:
     """Return evenly spaced values within a given range.
 
@@ -213,19 +299,17 @@ def arange(*args: t.Any, dtype: DTypeLike | None = None) -> ndarray:
     """
     c_args = len(args)
     if c_args == 0:
-        raise TypeError("Required argument 'start' not found")
+        raise TypeError("arange() requires stop to be specified")
     elif c_args > 3:
         raise TypeError("Too many input arguments")
     start, stop, step = (
-        (0, args[0], 1)
+        (0.0, args[0], 1.0)
         if c_args == 1
-        else (args[0], args[1], 1) if c_args == 2 else args
+        else (args[0], args[1], 1.0) if c_args == 2 else args
     )
     if step == 0:
         raise ValueError("Step size must not be zero")
-    size = max(0, (stop - start + (step - (1 if step > 0 else -1))) // step)
+    size = max(0, math.ceil((stop - start) / step))
     result = empty((size,), dtype=dtype)
-    # HACK(xames3): Below is just a hot patch to never consider floating
-    # numbers. This needs to be worked on.
-    result[:] = [*range(start, stop, step)]
+    result[:] = [start + idx * step for idx in range(size)]
     return result
