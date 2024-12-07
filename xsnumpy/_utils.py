@@ -4,7 +4,7 @@ xsNumPy Utilities
 
 Author: Akshay Mestry <xa@mes3.dev>
 Created on: Monday, November 25 2024
-Last updated on: Friday, December 06 2024
+Last updated on: Saturday, December 07 2024
 
 This module provides utility functions designed to streamline and
 enhance the development process within the xsNumPy library. These
@@ -18,17 +18,13 @@ from __future__ import annotations
 import math
 import typing as t
 
+from xsnumpy import array_function_dispatch
+
 if t.TYPE_CHECKING:
     from xsnumpy import ndarray
 
-__all__: list[str] = [
-    "calc_shape_from_obj",
-    "calc_size",
-    "calc_strides",
-    "get_step_size",
-]
 
-
+@array_function_dispatch
 def calc_strides(
     shape: t.Sequence[int],
     itemsize: int,
@@ -71,6 +67,7 @@ def calc_strides(
     return tuple(reversed(strides))
 
 
+@array_function_dispatch
 def calc_size(shape: t.Sequence[int]) -> int:
     """Calculate the total number of elements in an array given its
     shape.
@@ -86,6 +83,7 @@ def calc_size(shape: t.Sequence[int]) -> int:
     return math.prod(shape)
 
 
+@array_function_dispatch
 def get_step_size(view: ndarray) -> int:
     """Compute the step size to traverse an array.
 
@@ -110,6 +108,7 @@ def get_step_size(view: ndarray) -> int:
     return step_size if view.strides == strides else 0
 
 
+@array_function_dispatch
 def calc_shape_from_obj(object: t.Any) -> tuple[int, ...]:
     """Calculate the shape of a nested iterable object.
 
