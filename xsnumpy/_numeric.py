@@ -4,7 +4,7 @@ xsNumPy Array Functions
 
 Author: Akshay Mestry <xa@mes3.dev>
 Created on: Friday, December 06 2024
-Last updated on: Saturday, December 07 2024
+Last updated on: Monday, December 09 2024
 
 This module provides core functionality to create and manipulate xsNumPy
 arrays.
@@ -313,3 +313,47 @@ def arange(*args: t.Any, dtype: DTypeLike | None = None) -> ndarray:
     result = empty((size,), dtype=dtype)
     result[:] = [start + idx * step for idx in range(size)]
     return result
+
+
+@array_function_dispatch
+def dot(a: ndarray, b: ndarray) -> ndarray:
+    """Compute the dot product of two arrays.
+
+    For 1D arrays, this function returns the inner product of the
+    vectors. For 2D arrays, it performs matrix multiplication.
+    For higher-dimensional arrays, it computes the dot product along the
+    last axis of `a` and the second-to-last axis of `b`.
+
+    :param a: First input array.
+    :param b: Second input array.
+    :return: The dot product of `a` and `b`.
+    :raises ValueError: If the shapes of `a` and `b` are not aligned for
+        dot product computation.
+
+    .. note::
+
+        [1] The output's shape depends on the broadcasting rules and the
+            alignment of axes during computation.
+    """
+    if a.ndim == 1 and b.ndim == 1:
+        if a.shape[0] != b.shape[0]:
+            raise ValueError(
+                "Shapes of 1D arrays must be the same for dot product"
+            )
+        return sum(a[idx] * b[idx] for idx in range(a.shape[0]))
+    elif a.ndim == 2 and b.ndim == 2:
+        if a.shape[1] != b.shape[0]:
+            raise ValueError(
+                "Shapes are not aligned for matrix multiplication"
+            )
+        arr = ndarray((a.shape[0], b.shape[1]), dtype=a.dtype)
+        for idx in range(a.shape[0]):
+            for jdx in range(b.shape[1]):
+                arr[idx, jdx] = sum(
+                    a[idx, kdx] * b[kdx, jdx] for kdx in range(a.shape[1])
+                )
+        return arr
+    elif a.ndim > 2 or b.ndim > 2:
+        raise ValueError("Higher-dimensional dot product is not supported")
+    else:
+        raise ValueError("Invalid shapes for dot product")
