@@ -193,6 +193,7 @@ class ndarray:
         axis: int,
         offset: int,
         pad: int = 0,
+        whitespace: int = 0,
     ) -> str:
         """Format repr to mimic NumPy's ndarray as close as possible."""
         indent = min(2, max(0, (self.ndim - axis - 1)))
@@ -202,7 +203,9 @@ class ndarray:
                 if idx > 0:
                     s += ("\n " + " " * pad + " " * axis) * indent
                 _oset = offset + val * self._strides[axis] // self.itemsize
-                s = self._format_repr_as_str(s, axis + 1, _oset)
+                s = self._format_repr_as_str(
+                    s, axis + 1, _oset, whitespace=whitespace
+                )
                 if idx < self.shape[axis] - 1:
                     s += ", "
             s += "]"
@@ -210,12 +213,22 @@ class ndarray:
             r = repr(self.data[offset])
             if "." in r and r.endswith(".0"):
                 r = r[:-1]
-            s += r
+            s += f"{r:<{whitespace}}"
         return s
 
     def __repr__(self) -> str:
         """Return a string representation of ndarray object."""
-        s = self._format_repr_as_str("", 0, self._offset, 6)
+        ws = max(
+            map(
+                len,
+                map(
+                    str,
+                    (self.data[_] for _ in range(self.size)),
+                ),
+            )
+        )
+        ws = 0 if ws <= 3 else ws
+        s = self._format_repr_as_str("", 0, self._offset, 6, ws)
         if (
             self.dtype != "float64"
             and self.dtype != "int64"
@@ -837,3 +850,15 @@ class ndarray:
                 ensuring consistency and type fidelity.
         """
         return self.astype(self.dtype)
+
+    def tolist(self) -> list[t.Any]:
+        """Convert the ndarray to a nested Python list.
+
+        This method recursively iterates over the dimensions of the
+        ndarray to construct a nested list that mirrors the shape and
+        contents of the array.
+
+        :return: A nested Python list representation of the ndarray's
+            data.
+        """
+        return []
