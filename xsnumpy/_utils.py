@@ -4,7 +4,7 @@ xsNumPy Utilities
 
 Author: Akshay Mestry <xa@mes3.dev>
 Created on: Monday, November 25 2024
-Last updated on: Saturday, December 07 2024
+Last updated on: Wednesday, December 11 2024
 
 This module provides utility functions designed to streamline and
 enhance the development process within the xsNumPy library. These
@@ -22,6 +22,7 @@ from xsnumpy import array_function_dispatch
 
 if t.TYPE_CHECKING:
     from xsnumpy import ndarray
+    from xsnumpy._typing import _ArrayType
 
 
 @array_function_dispatch
@@ -137,3 +138,34 @@ def calc_shape_from_obj(object: t.Any) -> tuple[int, ...]:
 
     _calc_shape(object, 0)
     return tuple(shape)
+
+
+@array_function_dispatch
+def has_uniform_shape(object: _ArrayType) -> bool:
+    """Check if the input iterable has a uniform shape."""
+    if not isinstance(object, t.Iterable):
+        return True
+    return (
+        all(has_uniform_shape(element) for element in object)
+        and len(
+            set(
+                len(element)
+                for element in object
+                if isinstance(element, t.Sized)
+            )
+        )
+        <= 1
+    )
+
+
+@array_function_dispatch
+def set_module(module: str) -> t.Callable[..., t.Any]:
+    """Decorator for overriding `__module__` on a function or class."""
+
+    def decorator(func: t.Callable[..., t.Any]) -> t.Callable[..., t.Any]:
+        """Inner function."""
+        if module is not None:
+            func.__module__ = module
+        return func
+
+    return decorator

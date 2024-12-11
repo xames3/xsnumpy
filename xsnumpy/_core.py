@@ -4,7 +4,7 @@ xsNumPy Array
 
 Author: Akshay Mestry <xa@mes3.dev>
 Created on: Monday, November 18 2024
-Last updated on: Monday, December 09 2024
+Last updated on: Wednesday, December 11 2024
 
 This module provides foundational structures and utilities for
 array-like data structures modeled after NumPy's `ndarray`. It includes
@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import builtins
 import ctypes
+import itertools
 import typing as t
 from collections import namedtuple
 from collections.abc import Iterable
@@ -27,6 +28,7 @@ from xsnumpy._typing import _ShapeLike
 from xsnumpy._utils import calc_size
 from xsnumpy._utils import calc_strides
 from xsnumpy._utils import get_step_size
+from xsnumpy._utils import set_module
 
 __all__: list[str] = [
     "bool",
@@ -44,34 +46,37 @@ __all__: list[str] = [
 ]
 
 
-def _dtype_repr(self: _base_dtype) -> str:
+def _dtype_repr(self: _BaseDType) -> str:
     """Add repr method to dtype namedtuple."""
-    return f"xp.{self.numpy}({self.value})"
+    return f"dtype({self.numpy!r})"
 
 
-def _dtype_str(self: _base_dtype) -> str:
+def _dtype_str(self: _BaseDType) -> str:
     """Add str method to dtype namedtuple."""
     return f"{self.numpy}"
 
 
-_base_dtype = namedtuple("_base_dtype", "short, numpy, ctypes, value")
-_base_dtype.__repr__ = _dtype_repr
-_base_dtype.__str__ = _dtype_str
+_BaseDType = namedtuple("_BaseDType", "short, numpy, ctypes, value")
+_BaseDType.__repr__ = _dtype_repr
+_BaseDType.__str__ = _dtype_str
 
-_supported_dtypes: tuple[_base_dtype, ...] = (
-    (bool := _base_dtype("b1", "bool", ctypes.c_bool, False)),
-    (int8 := _base_dtype("i1", "int8", ctypes.c_int8, 0)),
-    (uint8 := _base_dtype("u1", "uint8", ctypes.c_uint8, 0)),
-    (int16 := _base_dtype("i2", "int16", ctypes.c_int16, 0)),
-    (uint16 := _base_dtype("u2", "uint16", ctypes.c_uint16, 0)),
-    (int32 := _base_dtype("i4", "int32", ctypes.c_int32, 0)),
-    (uint32 := _base_dtype("u4", "uint32", ctypes.c_uint32, 0)),
-    (int64 := _base_dtype("i8", "int64", ctypes.c_int64, 0)),
-    (uint64 := _base_dtype("u8", "uint64", ctypes.c_uint64, 0)),
-    (float := _base_dtype("f4", "float", ctypes.c_float, 0.0)),
-    (float64 := _base_dtype("f8", "float64", ctypes.c_double, 0.0)),
+_supported_dtypes: tuple[_BaseDType, ...] = (
+    (bool := _BaseDType("b1", "bool", ctypes.c_bool, False)),
+    (int8 := _BaseDType("i1", "int8", ctypes.c_int8, 0)),
+    (uint8 := _BaseDType("u1", "uint8", ctypes.c_uint8, 0)),
+    (int16 := _BaseDType("i2", "int16", ctypes.c_int16, 0)),
+    (uint16 := _BaseDType("u2", "uint16", ctypes.c_uint16, 0)),
+    (int32 := _BaseDType("i4", "int32", ctypes.c_int32, 0)),
+    (uint32 := _BaseDType("u4", "uint32", ctypes.c_uint32, 0)),
+    (int64 := _BaseDType("i8", "int64", ctypes.c_int64, 0)),
+    (uint64 := _BaseDType("u8", "uint64", ctypes.c_uint64, 0)),
+    (float := _BaseDType("f4", "float", ctypes.c_float, 0.0)),
+    (float64 := _BaseDType("f8", "float64", ctypes.c_double, 0.0)),
 )
 float32 = float
+
+for dtype in _supported_dtypes:
+    globals()[dtype] = dtype
 
 
 @array_function_dispatch
@@ -106,6 +111,7 @@ def _convert_dtype(
     return getattr(dtype, to)
 
 
+@set_module("xsnumpy")
 @array_function_dispatch
 class ndarray:
     """Simplified implementation of a multi-dimensional array.
@@ -134,7 +140,7 @@ class ndarray:
     def __init__(
         self,
         shape: _ShapeLike,
-        dtype: DTypeLike | None = "float64",
+        dtype: DTypeLike | _BaseDType | None = "float64",
         buffer: None | t.Any = None,
         offset: t.SupportsIndex = 0,
         strides: None | _ShapeLike = None,
@@ -149,7 +155,11 @@ class ndarray:
         if not isinstance(shape, Iterable):
             raise TypeError("Shape must be either tuple or list of integers")
         self._shape = tuple(int(dim) for dim in shape)
-        self._dtype = _convert_dtype(dtype)
+        if dtype is None:
+            dtype = float32
+        else:
+            dtype = globals()[dtype]
+        self._dtype = dtype
         self._itemsize = int(_convert_dtype(dtype, "short")[-1])
         self._offset = int(offset)
         if buffer is None:
@@ -193,6 +203,7 @@ class ndarray:
         axis: int,
         offset: int,
         pad: int = 0,
+        whitespace: int = 0,
     ) -> str:
         """Format repr to mimic NumPy's ndarray as close as possible."""
         indent = min(2, max(0, (self.ndim - axis - 1)))
@@ -202,24 +213,37 @@ class ndarray:
                 if idx > 0:
                     s += ("\n " + " " * pad + " " * axis) * indent
                 _oset = offset + val * self._strides[axis] // self.itemsize
-                s = self._format_repr_as_str(s, axis + 1, _oset)
+                s = self._format_repr_as_str(
+                    s, axis + 1, _oset, whitespace=whitespace
+                )
                 if idx < self.shape[axis] - 1:
                     s += ", "
             s += "]"
         else:
             r = repr(self.data[offset])
             if "." in r and r.endswith(".0"):
-                r = r[:-1]
+                r = f"{r[:-1]:<{whitespace}}"
+            else:
+                r = f"{r:>{whitespace}}"
             s += r
         return s
 
     def __repr__(self) -> str:
         """Return a string representation of ndarray object."""
-        s = self._format_repr_as_str("", 0, self._offset, 6)
+        ws = max(
+            map(
+                len,
+                map(
+                    str,
+                    (self.data[_] for _ in range(self.size)),
+                ),
+            )
+        )
+        s = self._format_repr_as_str("", 0, self._offset, 6, ws)
         if (
-            self.dtype != "float64"
-            and self.dtype != "int64"
-            and self.dtype != "bool"
+            self.dtype != float64
+            and self.dtype != int64
+            and self.dtype != bool
         ):
             return f"array({s}, dtype={self.dtype.__str__()})"
         else:
@@ -296,7 +320,9 @@ class ndarray:
     def __setitem__(
         self,
         key: int | slice | tuple[int | slice | None, ...],
-        value: builtins.float | int | t.Sequence[int | builtins.float],
+        value: (
+            builtins.float | int | t.Sequence[int | builtins.float] | ndarray
+        ),
     ) -> None:
         """Set the value of an element or a slice in the array.
 
@@ -336,8 +362,12 @@ class ndarray:
         elif isinstance(value, (tuple, list)):
             values = list(value)
         else:
-            # TODO(xames3): Need to come up with an alternative.
-            ...
+            # TODO(xames3): Although this is fixed and properly
+            # implemented, I need to make it mypy compliant and remove
+            # the disabling comment.
+            if not isinstance(value, ndarray):
+                value = ndarray(value)  # type: ignore
+            values = value._flat()
         if view.size != len(values):
             raise ValueError(
                 "Number of elements in the value doesn't match the shape"
@@ -667,7 +697,7 @@ class ndarray:
         return self._strides
 
     @property
-    def dtype(self) -> str:
+    def dtype(self) -> t.Any | str:
         """Return the data type of the array elements (mainly str)."""
         return self._dtype
 
@@ -724,6 +754,82 @@ class ndarray:
                 for dim in range(subview.shape[0]):
                     subviews.append(subview[dim])
 
+    def all(self, axis: None | int = None) -> builtins.bool | ndarray:
+        """Return True if all elements evaluate to True."""
+        if axis is None:
+            return all(self.flat)
+        if not (0 <= axis < self.ndim):
+            raise ValueError(
+                f"Axis {axis} is out of bounds for array with "
+                f"{self.ndim} dimensions"
+            )
+        shape = tuple(dim for idx, dim in enumerate(self.shape) if idx != axis)
+        arr = ndarray(shape, dtype=bool)
+        indices = [slice(None)] * self.ndim
+        for idx in ndindex(*shape):
+            indices = list(idx[:axis]) + [slice(None)] + list(idx[axis:])
+            arr[idx] = all(element for element in self[tuple(indices)])
+        return arr
+
+    def any(self, axis: None | int = None) -> builtins.bool | ndarray:
+        """Return True if any elements evaluate to True."""
+        if axis is None:
+            return any(self.flat)
+        if not (0 <= axis < self.ndim):
+            raise ValueError(
+                f"Axis {axis} is out of bounds for array with "
+                f"{self.ndim} dimensions"
+            )
+        shape = tuple(dim for idx, dim in enumerate(self.shape) if idx != axis)
+        arr = ndarray(shape, dtype=bool)
+        indices = [slice(None)] * self.ndim
+        for idx in ndindex(*shape):
+            indices = list(idx[:axis]) + [slice(None)] + list(idx[axis:])
+            arr[idx] = any(element for element in self[tuple(indices)])
+        return arr
+
+    def astype(self, dtype: DTypeLike) -> ndarray:
+        """Return a copy of the array cast to a specified data type.
+
+        This method creates a new `ndarray` with the same shape and data
+        as the original array but cast to the specified data type. The
+        original array remains unmodified.
+
+        :param dtype: The desired data type for the output array.
+        :return: A new array with the specified data type and the same
+            shape as the original array.
+        :raises ValueError: If `dtype` is invalid or cannot be applied
+            to the array.
+
+        .. note::
+
+            [1] This operation creates a copy of the data, even if the
+                requested data type is the same as the original.
+        """
+        arr = ndarray(self.shape, dtype)
+        arr[:] = self
+        return arr
+
+    def copy(self) -> ndarray:
+        """Return a deep copy of the array.
+
+        This method creates a new `ndarray` instance with the same data,
+        shape, and type as the original array. The copy is independent
+        of the original, meaning changes to the copy do not affect the
+        original array.
+
+        :return: A new array with the same data, shape, and type as the
+            original array.
+
+        .. note::
+
+            [1] This method ensures that both the data and metadata of
+                the array are duplicated.
+            [2] The `astype` method is used internally for copying,
+                ensuring consistency and type fidelity.
+        """
+        return self.astype(self.dtype)
+
     def fill(self, value: int | builtins.float) -> None:
         """Fill the entire ndarray with a scalar value.
 
@@ -744,6 +850,42 @@ class ndarray:
         if not isinstance(value, (int, builtins.float)):
             raise ValueError("Value must be an integer or a float")
         self[:] = value
+
+    def flatten(self, order: None | _OrderKACF = None) -> ndarray:
+        """Return a copy of the array collapsed into one dimension."""
+        if order is not None:
+            raise ValueError("Order needs to be None")
+        arr = ndarray((self.size,), self.dtype)
+        arr[:] = self
+        return arr
+
+    def item(self, args: None | int | tuple[int, int] = None) -> t.Any:
+        """Return standard scalar Python object for ndarray object."""
+        arr = self.flatten()
+        if args is None:
+            if self.size == 1:
+                return arr[0]
+            else:
+                raise ValueError(
+                    "Only array of size 1 can be converted to a Python scalar"
+                )
+        if isinstance(args, int):
+            return arr[args]
+        elif isinstance(args, tuple):
+            return self[args[0], args[1]]
+
+    def tolist(self) -> list[t.Any]:
+        """Convert the ndarray to a nested Python list.
+
+        This method recursively iterates over the dimensions of the
+        ndarray to construct a nested list that mirrors the shape and
+        contents of the array.
+
+        :return: A nested Python list representation of the ndarray's
+            data.
+        """
+        # TODO(xames3): Write a flattening function to resolve nesting?
+        return []
 
     def view(
         self,
@@ -796,44 +938,21 @@ class ndarray:
         else:
             raise ValueError("Arrays can only be viewed with the same dtype")
 
-    def astype(self, dtype: DTypeLike) -> ndarray:
-        """Return a copy of the array cast to a specified data type.
 
-        This method creates a new `ndarray` with the same shape and data
-        as the original array but cast to the specified data type. The
-        original array remains unmodified.
+@set_module("xsnumpy")
+@array_function_dispatch
+class ndindex:
+    """An iterator to generate all possible indices for a given shape.
 
-        :param dtype: The desired data type for the output array.
-        :return: A new array with the specified data type and the same
-            shape as the original array.
-        :raises ValueError: If `dtype` is invalid or cannot be applied
-            to the array.
+    Similar to NumPy's `ndindex`, this class produces tuples
+    representing the coordinates of elements in a multidimensional array
+    with the specified shape.
+    """
 
-        .. note::
+    def __init__(self, *shape: t.SupportsIndex) -> None:
+        """Initialize the `ndindex` object with shape."""
+        self.shape = shape
 
-            [1] This operation creates a copy of the data, even if the
-                requested data type is the same as the original.
-        """
-        arr = ndarray(self.shape, dtype)
-        arr[:] = self
-        return arr
-
-    def copy(self) -> ndarray:
-        """Return a deep copy of the array.
-
-        This method creates a new `ndarray` instance with the same data,
-        shape, and type as the original array. The copy is independent
-        of the original, meaning changes to the copy do not affect the
-        original array.
-
-        :return: A new array with the same data, shape, and type as the
-            original array.
-
-        .. note::
-
-            [1] This method ensures that both the data and metadata of
-                the array are duplicated.
-            [2] The `astype` method is used internally for copying,
-                ensuring consistency and type fidelity.
-        """
-        return self.astype(self.dtype)
+    def __iter__(self) -> t.Iterator[tuple[int, ...]]:
+        """Return an iterator over all possible indices."""
+        return itertools.product(*(range(dim) for dim in self.shape))

@@ -4,7 +4,7 @@ xsNumPy Array Functions
 
 Author: Akshay Mestry <xa@mes3.dev>
 Created on: Friday, December 06 2024
-Last updated on: Monday, December 09 2024
+Last updated on: Wednesday, December 11 2024
 
 This module provides core functionality to create and manipulate xsNumPy
 arrays.
@@ -18,8 +18,61 @@ import typing as t
 from xsnumpy import array_function_dispatch
 from xsnumpy import ndarray
 from xsnumpy._typing import DTypeLike
+from xsnumpy._typing import _ArrayType
 from xsnumpy._typing import _OrderKACF
 from xsnumpy._typing import _ShapeLike
+from xsnumpy._utils import calc_shape_from_obj
+from xsnumpy._utils import has_uniform_shape
+
+
+@array_function_dispatch
+def array(
+    object: _ArrayType,
+    dtype: DTypeLike | None = None,
+    order: None | _OrderKACF = None,
+    shape: _ShapeLike | None = None,
+) -> ndarray:
+    """Create an ndarray from a Python iterable.
+
+    This function builds an ndarray from a sequence of elements, which
+    can include nested sequences to represent multidimensional data.
+    The function validates input uniformity and infers the appropriate
+    shape and data type.
+
+    :param object: Input data, such as a list or tuple, to be converted
+        into an ndarray. The input can have nested iterables for
+        multidimensional arrays.
+    :param dtype: The desired data type of the array, defaults to
+        `None`, in which case the type is inferred from the input data.
+    :return: A new array populated with data from the input iterable.
+    :raises ValueError: If the input is not uniform in its nested
+        dimensions.
+    """
+    if not has_uniform_shape(object):
+        raise ValueError("Input data is not uniformly nested")
+    if shape is None:
+        shape = calc_shape_from_obj(object)
+    _flattened_buffer: list[t.Any] = []
+
+    def _flatten(obj: _ArrayType) -> None:
+        """Recursively flatten the input iterable."""
+        if isinstance(obj, t.Iterable):
+            for item in obj:
+                _flatten(item)
+        else:
+            _flattened_buffer.append(obj)
+
+    _flatten(object)
+    # TODO(xames3): Need to resolve the dtype overridding when
+    # considering the base dtype.
+    dtype = (
+        "float64"
+        if any(filter(lambda x: isinstance(x, float), _flattened_buffer))
+        else "int64"
+    )
+    arr = ndarray(shape, dtype, order=order)
+    arr[:] = _flattened_buffer
+    return arr
 
 
 @array_function_dispatch
@@ -291,11 +344,6 @@ def arange(*args: t.Any, dtype: DTypeLike | None = None) -> ndarray:
     :param dtype: The desired data type of the output array, defaults to
         `None`, in which case the data type is inferred.
     :return: A 1-D array of evenly spaced values.
-
-    .. note::
-
-        [1] Unlike NumPy's `arange`, this implementation uses integer
-            only inputs and does not support floating-point step sizes.
     """
     c_args = len(args)
     if c_args == 0:
