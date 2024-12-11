@@ -4,7 +4,7 @@ xsNumPy Utilities
 
 Author: Akshay Mestry <xa@mes3.dev>
 Created on: Monday, November 25 2024
-Last updated on: Monday, December 09 2024
+Last updated on: Wednesday, December 11 2024
 
 This module provides utility functions designed to streamline and
 enhance the development process within the xsNumPy library. These
@@ -156,3 +156,16 @@ def has_uniform_shape(object: _ArrayType) -> bool:
         )
         <= 1
     )
+
+
+@array_function_dispatch
+def set_module(module: str) -> t.Callable[..., t.Any]:
+    """Decorator for overriding `__module__` on a function or class."""
+
+    def decorator(func: t.Callable[..., t.Any]) -> t.Callable[..., t.Any]:
+        """Inner function."""
+        if module is not None:
+            func.__module__ = module
+        return func
+
+    return decorator

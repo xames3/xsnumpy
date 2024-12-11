@@ -4,7 +4,7 @@ xsNumPy Array Functions
 
 Author: Akshay Mestry <xa@mes3.dev>
 Created on: Friday, December 06 2024
-Last updated on: Monday, December 09 2024
+Last updated on: Wednesday, December 11 2024
 
 This module provides core functionality to create and manipulate xsNumPy
 arrays.
@@ -63,6 +63,8 @@ def array(
             _flattened_buffer.append(obj)
 
     _flatten(object)
+    # TODO(xames3): Need to resolve the dtype overridding when
+    # considering the base dtype.
     dtype = (
         "float64"
         if any(filter(lambda x: isinstance(x, float), _flattened_buffer))
@@ -342,11 +344,6 @@ def arange(*args: t.Any, dtype: DTypeLike | None = None) -> ndarray:
     :param dtype: The desired data type of the output array, defaults to
         `None`, in which case the data type is inferred.
     :return: A 1-D array of evenly spaced values.
-
-    .. note::
-
-        [1] Unlike NumPy's `arange`, this implementation uses integer
-            only inputs and does not support floating-point step sizes.
     """
     c_args = len(args)
     if c_args == 0:
