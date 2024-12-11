@@ -241,9 +241,9 @@ class ndarray:
         )
         s = self._format_repr_as_str("", 0, self._offset, 6, ws)
         if (
-            self.dtype != "float64"
-            and self.dtype != "int64"
-            and self.dtype != "bool"
+            self.dtype != float64
+            and self.dtype != int64
+            and self.dtype != bool
         ):
             return f"array({s}, dtype={self.dtype.__str__()})"
         else:
