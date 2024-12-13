@@ -4,7 +4,7 @@ xsNumPy Array Functions
 
 Author: Akshay Mestry <xa@mes3.dev>
 Created on: Friday, December 06 2024
-Last updated on: Thursday, December 12 2024
+Last updated on: Friday, December 13 2024
 
 This module provides essential array creation and initialization
 utilities for the `xsnumpy` package. It contains a suite of functions
@@ -106,12 +106,10 @@ def array(
             _flattened_buffer.append(obj)
 
     _flatten(object)
-    # TODO(xames3): Need to resolve the dtype overridding when
-    # considering the base dtype.
     dtype = (
-        "float64"
-        if any(filter(lambda x: isinstance(x, float), _flattened_buffer))
-        else "int64"
+        "int32"
+        if all(isinstance(idx, int) for idx in _flattened_buffer)
+        else "float32"
     )
     out = ndarray(shape, dtype, order=order)
     out[:] = _flattened_buffer
@@ -392,10 +390,10 @@ def diag(v: ndarray, k: int = 0) -> ndarray:
     """
     if v.ndim == 1:
         size = v.shape[0]
-        result = zeros((size + abs(k), size + abs(k)), dtype=v.dtype)
+        out = zeros((size + abs(k), size + abs(k)), dtype=v.dtype)
         for idx in range(size):
-            result[(idx + k, idx) if k < 0 else (idx, idx + k)] = v[idx]
-        return result
+            out[(idx + k, idx) if k < 0 else (idx, idx + k)] = v[idx]
+        return out
     elif v.ndim == 2:
         rows, cols = v.shape
         if k >= 0:
@@ -444,9 +442,14 @@ def arange(*args: t.Any, dtype: None | DTypeLike = None) -> ndarray:
     if step == 0:
         raise ValueError("Step size must not be zero")
     size = max(0, math.ceil((stop - start) / step))
-    result = empty((size,), dtype=dtype)
-    result[:] = [start + idx * step for idx in range(size)]
-    return result
+    dtype = (
+        "int32"
+        if all(isinstance(idx, int) for idx in (start, stop, step))
+        else "float32"
+    )
+    out = empty((size,), dtype=dtype)
+    out[:] = [start + idx * step for idx in range(size)]
+    return out
 
 
 @array_function_dispatch
