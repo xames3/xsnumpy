@@ -4,10 +4,27 @@ xsNumPy
 
 Author: Akshay Mestry <xa@mes3.dev>
 Created on: Monday, November 18 2024
-Last updated on: Saturday, December 07 2024
+Last updated on: Thursday, December 12 2024
 
 A personal pet-project of mine to try and implement the basic and bare-
-bones functionality of NumPy just using pure Python.
+bones functionality of NumPy just using pure Python. This module is a
+testament to the richness of NumPy's design. By reimplementing its core
+features in a self-contained and minimalistic fashion, this project
+aims to::
+
+    - Provide an educational tool for those seeking to understand array
+      mechanics.
+    - Serve as a lightweight alternative for environments where
+      dependencies must be minimized.
+    - Encourage developers to explore the intricacies of
+      multidimensional array computation.
+
+This `xsnumpy` project acknowledges the incredible contributions of the
+NumPy team and community over decades of development. While this module
+reimagines NumPy's functionality, it owes its design, inspiration, and
+motivation to the pioneering work of the NumPy developers. This module
+is not a replacement for NumPy but an homage to its brilliance and an
+opportunity to explore its concepts from the ground up.
 """
 
 from __future__ import annotations

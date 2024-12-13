@@ -1,15 +1,61 @@
 """\
-xsNumPy Array
-==============
+xsNumPy N-Dimensional Array
+===========================
 
 Author: Akshay Mestry <xa@mes3.dev>
 Created on: Monday, November 18 2024
-Last updated on: Wednesday, December 11 2024
+Last updated on: Thursday, December 12 2024
 
-This module provides foundational structures and utilities for
-array-like data structures modeled after NumPy's `ndarray`. It includes
-support for core features like shapes, strides, and data type
-definitions.
+This module implements the core functionality of the `xsnumpy` package,
+providing the foundational `ndarray` class, which serves as the building
+block for numerical computation in the library. Designed with
+flexibility, efficiency, and modularity in mind, the `ndarray` class aims
+to replicate and innovate upon the core features of NumPy arrays while
+emphasizing a Python-standard-library-only approach.
+
+The `ndarray` class in this module is a multidimensional container that
+supports efficient manipulation of numerical data. Its design is inspired
+by NumPy, the gold standard for numerical computing in Python, and it
+incorporates similar semantics to provide users with a familiar
+interface. Additionally, the class introduces a Pythonic, educational
+perspective, making it suitable for learning and experimentation with
+array mechanics without relying on external libraries.
+
+As of now, the module supports features such as::
+
+    - Efficient storage and representation of n-dimensional data.
+    - Flexible shape manipulation, including reshaping and broadcasting.
+    - Element-wise operations, including arithmetic, logical, and
+      comparison operations, via rich operator overloading.
+    - Slicing and indexing support for intuitive data access.
+    - Conversion utilities to export data to native Python types
+      (e.g., lists).
+    - Basic numerical operations such as dot product, summation, and
+      element reduction.
+
+The `ndarray` implementation draws inspiration from NumPy's architecture
+but deliberately simplifies and reimagines certain aspects for
+educational purposes and to meet the constraints of pure Python. By
+eschewing C or Cython extensions, the `ndarray` class offers an
+accessible implementation that emphasizes algorithmic clarity over raw
+performance.
+
+The `ndarray` class exposes a set of intuitive attributes like::
+
+    - `shape`: A tuple indicating the array's dimensions.
+    - `ndim`: The number of dimensions of the array.
+    - `size`: The total number of elements in the array.
+    - `dtype`: Specifies the data type of the array's elements.
+
+In addition to the core `ndarray` functionality, this module introduces
+several helper functions to aid in array manipulation and generation.
+These functions are designed to complement the `ndarray` class and mimic
+key functionality found in NumPy.
+
+While this module implements many fundamental features of `ndarray`, it
+does not aim to match NumPy's performance or breadth. Instead, the focus
+is on clarity, usability, and modularity, providing a platform for
+learning and experimentation.
 """
 
 from __future__ import annotations
@@ -79,7 +125,6 @@ for dtype in _supported_dtypes:
     globals()[dtype] = dtype
 
 
-@array_function_dispatch
 def _convert_dtype(
     dtype: None | t.Any,
     to: t.Literal["short", "numpy", "ctypes"] = "numpy",
@@ -125,6 +170,16 @@ class ndarray:
     strides, and memory management in pure Python. It provides a
     foundational understanding of how array-like structures manage data
     and metadata.
+
+    :param shape: The desired shape of the array. Can be an int for
+        1D arrays or a sequence of ints for multidimensional arrays.
+    :param dtype: The desired data type of the array, defaults to
+        `xs.float32` if not specified.
+    :param buffer: Object used to fill the array with data, defaults to
+        `None`.
+    :param offset: Offset of array data in buffer, defaults to `0`.
+    :param strides: Strides of data in memory, defaults to `None`.
+    :param order: The memory layout of the array, defaults to `None`.
     """
 
     __slots__: tuple[str, ...] = (
@@ -140,7 +195,7 @@ class ndarray:
     def __init__(
         self,
         shape: _ShapeLike,
-        dtype: DTypeLike | _BaseDType | None = "float64",
+        dtype: None | DTypeLike | _BaseDType = float32,
         buffer: None | t.Any = None,
         offset: t.SupportsIndex = 0,
         strides: None | _ShapeLike = None,
@@ -319,7 +374,7 @@ class ndarray:
 
     def __setitem__(
         self,
-        key: int | slice | tuple[int | slice | None, ...],
+        key: int | slice | tuple[None | int | slice, ...],
         value: (
             builtins.float | int | t.Sequence[int | builtins.float] | ndarray
         ),
@@ -408,22 +463,22 @@ class ndarray:
         :raises ValueError: If `other` is an ndarray but its shape
             doesn't match `self.shape`.
         """
-        arr = ndarray(self.shape, self.dtype)
+        out = ndarray(self.shape, self.dtype)
         if isinstance(other, (int, builtins.float)):
-            arr[:] = [x + other for x in self._data]
+            out[:] = [x + other for x in self._data]
         elif isinstance(other, ndarray):
             if self.shape != other.shape:
                 raise ValueError(
                     "Operands couldn't broadcast together with shapes "
                     f"{self.shape} {other.shape}"
                 )
-            arr[:] = [x + y for x, y in zip(self.flat, other.flat)]
+            out[:] = [x + y for x, y in zip(self.flat, other.flat)]
         else:
             raise TypeError(
                 f"Unsupported operand type(s) for +: {type(self).__name__!r} "
                 f"and {type(other).__name__!r}"
             )
-        return arr
+        return out
 
     def __radd__(self, other: ndarray | int | builtins.float) -> ndarray:
         """Perform reverse addition, delegating to `__add__`.
@@ -450,22 +505,22 @@ class ndarray:
         :raises ValueError: If `other` is an ndarray but its shape
             doesn't match `self.shape`.
         """
-        arr = ndarray(self.shape, self.dtype)
+        out = ndarray(self.shape, self.dtype)
         if isinstance(other, (int, builtins.float)):
-            arr[:] = [x - other for x in self._data]
+            out[:] = [x - other for x in self._data]
         elif isinstance(other, ndarray):
             if self.shape != other.shape:
                 raise ValueError(
                     "Operands couldn't broadcast together with shapes "
                     f"{self.shape} {other.shape}"
                 )
-            arr[:] = [x - y for x, y in zip(self.flat, other.flat)]
+            out[:] = [x - y for x, y in zip(self.flat, other.flat)]
         else:
             raise TypeError(
                 f"Unsupported operand type(s) for -: {type(self).__name__!r} "
                 f"and {type(other).__name__!r}"
             )
-        return arr
+        return out
 
     def __rsub__(self, other: ndarray | int | builtins.float) -> ndarray:
         """Perform reverse subtraction, delegating to `__sub__`.
@@ -492,22 +547,22 @@ class ndarray:
         :raises ValueError: If `other` is an ndarray but its shape
             doesn't match `self.shape`.
         """
-        arr = ndarray(self.shape, self.dtype)
+        out = ndarray(self.shape, self.dtype)
         if isinstance(other, (int, builtins.float)):
-            arr[:] = [x * other for x in self._data]
+            out[:] = [x * other for x in self._data]
         elif isinstance(other, ndarray):
             if self.shape != other.shape:
                 raise ValueError(
                     "Operands couldn't broadcast together with shapes "
                     f"{self.shape} {other.shape}"
                 )
-            arr[:] = [x * y for x, y in zip(self.flat, other.flat)]
+            out[:] = [x * y for x, y in zip(self.flat, other.flat)]
         else:
             raise TypeError(
                 f"Unsupported operand type(s) for *: {type(self).__name__!r} "
                 f"and {type(other).__name__!r}"
             )
-        return arr
+        return out
 
     def __rmul__(self, other: ndarray | int | builtins.float) -> ndarray:
         """Perform reverse multiplication, delegating to `__mul__`.
@@ -534,24 +589,24 @@ class ndarray:
         :raises ValueError: If `other` is an ndarray but its shape
             doesn't match `self.shape`.
         """
-        arr = ndarray(self.shape, self.dtype)
+        out = ndarray(self.shape, self.dtype)
         if isinstance(other, (int, builtins.float)):
             if other == 0:
                 raise ZeroDivisionError
-            arr[:] = [x / other for x in self._data]
+            out[:] = [x / other for x in self._data]
         elif isinstance(other, ndarray):
             if self.shape != other.shape:
                 raise ValueError(
                     "Operands couldn't broadcast together with shapes "
                     f"{self.shape} {other.shape}"
                 )
-            arr[:] = [x / y for x, y in zip(self.flat, other.flat)]
+            out[:] = [x / y for x, y in zip(self.flat, other.flat)]
         else:
             raise TypeError(
                 f"Unsupported operand type(s) for /: {type(self).__name__!r} "
                 f"and {type(other).__name__!r}"
             )
-        return arr
+        return out
 
     def __floordiv__(self, other: ndarray | int | builtins.float) -> ndarray:
         """Perform element-wise floor division of the ndarray with a
@@ -570,27 +625,27 @@ class ndarray:
         :raises ValueError: If `other` is an ndarray but its shape
             doesn't match `self.shape`.
         """
-        arr = ndarray(self.shape, self.dtype)
+        out = ndarray(self.shape, self.dtype)
         if isinstance(other, (int, builtins.float)):
             if other == 0:
                 raise ZeroDivisionError
-            arr[:] = [x // other for x in self._data]
+            out[:] = [x // other for x in self._data]
         elif isinstance(other, ndarray):
             if self.shape != other.shape:
                 raise ValueError(
                     "Operands couldn't broadcast together with shapes "
                     f"{self.shape} {other.shape}"
                 )
-            arr[:] = [x // y for x, y in zip(self.flat, other.flat)]
+            out[:] = [x // y for x, y in zip(self.flat, other.flat)]
         else:
             raise TypeError(
                 f"Unsupported operand type(s) for //: {type(self).__name__!r} "
                 f"and {type(other).__name__!r}"
             )
-        return arr
+        return out
 
     def _calculate_offset_and_strides(
-        self, key: int | slice | tuple[int | slice | None, ...]
+        self, key: int | slice | tuple[None | int | slice, ...]
     ) -> tuple[int, tuple[int, ...], tuple[int, ...]]:
         """Calculate offset, shape, and strides for an indexing
         operation.
@@ -677,9 +732,19 @@ class ndarray:
         return self._shape
 
     @property
+    def strides(self) -> tuple[int, ...]:
+        """Return the strides for traversing the array dimensions."""
+        return self._strides
+
+    @property
     def ndim(self) -> int:
         """Return the number of dimensions of the array."""
         return len(self._shape)
+
+    @property
+    def data(self) -> t.Any:
+        """Return the memory buffer holding the array elements."""
+        return self._data
 
     @property
     def size(self) -> int:
@@ -687,24 +752,14 @@ class ndarray:
         return calc_size(self._shape)
 
     @property
-    def nbytes(self) -> int:
-        """Return number of byte size of an array."""
-        return self.size * self.itemsize
-
-    @property
-    def strides(self) -> tuple[int, ...]:
-        """Return the strides for traversing the array dimensions."""
-        return self._strides
-
-    @property
-    def dtype(self) -> t.Any | str:
-        """Return the data type of the array elements (mainly str)."""
-        return self._dtype
-
-    @property
     def itemsize(self) -> int:
         """Return the size, in bytes, of each array element."""
         return self._itemsize
+
+    @property
+    def nbytes(self) -> int:
+        """Return number of byte size of an array."""
+        return self.size * self.itemsize
 
     @property
     def base(self) -> None | t.Any:
@@ -712,9 +767,9 @@ class ndarray:
         return self._base
 
     @property
-    def data(self) -> t.Any:
-        """Return the memory buffer holding the array elements."""
-        return self._data
+    def dtype(self) -> t.Any | str:
+        """Return the data type of the array elements (mainly str)."""
+        return self._dtype
 
     @property
     def flat(self) -> t.Generator[int | builtins.float]:
@@ -764,12 +819,12 @@ class ndarray:
                 f"{self.ndim} dimensions"
             )
         shape = tuple(dim for idx, dim in enumerate(self.shape) if idx != axis)
-        arr = ndarray(shape, dtype=bool)
+        out = ndarray(shape, dtype=bool)
         indices = [slice(None)] * self.ndim
         for idx in ndindex(*shape):
             indices = list(idx[:axis]) + [slice(None)] + list(idx[axis:])
-            arr[idx] = all(element for element in self[tuple(indices)])
-        return arr
+            out[idx] = all(element for element in self[tuple(indices)])
+        return out
 
     def any(self, axis: None | int = None) -> builtins.bool | ndarray:
         """Return True if any elements evaluate to True."""
@@ -781,12 +836,12 @@ class ndarray:
                 f"{self.ndim} dimensions"
             )
         shape = tuple(dim for idx, dim in enumerate(self.shape) if idx != axis)
-        arr = ndarray(shape, dtype=bool)
+        out = ndarray(shape, dtype=bool)
         indices = [slice(None)] * self.ndim
         for idx in ndindex(*shape):
             indices = list(idx[:axis]) + [slice(None)] + list(idx[axis:])
-            arr[idx] = any(element for element in self[tuple(indices)])
-        return arr
+            out[idx] = any(element for element in self[tuple(indices)])
+        return out
 
     def astype(self, dtype: DTypeLike) -> ndarray:
         """Return a copy of the array cast to a specified data type.
@@ -806,9 +861,61 @@ class ndarray:
             [1] This operation creates a copy of the data, even if the
                 requested data type is the same as the original.
         """
-        arr = ndarray(self.shape, dtype)
-        arr[:] = self
-        return arr
+        out = ndarray(self.shape, dtype)
+        out[:] = self
+        return out
+
+    def clip(
+        self,
+        a_min: builtins.float | int | ndarray,
+        a_max: builtins.float | int | ndarray,
+        out: None | ndarray = None,
+    ) -> ndarray:
+        """Clip (limit) the values in the array.
+
+        Given an input array, this method returns an array where values
+        are limited to a specified range. All values less than `a_min`
+        are set to `a_min`, and all values greater than `a_max` are set
+        to `a_max`.
+
+        :param a_min: Minimum value to clip to. Can be a scalar or an
+            array.
+        :param a_max: Maximum value to clip to. Can be a scalar or an
+            array.
+        :param out: Optional output array to store the result, defaults
+            to `None`.
+        :return: A new array with values clipped to the specified range.
+        :raises TypeError: If either `a_min` or `a_max` are not either
+            of type `int`, `float` or `ndarray`.
+        :raises ValueError: If output shape doesn't match as the input
+            array.
+        """
+        if not isinstance(a_min, (int, builtins.float, ndarray)):
+            raise TypeError("`a_min` must be a scalar or an ndarray")
+        if not isinstance(a_max, (int, builtins.float, ndarray)):
+            raise TypeError("`a_max` must be a scalar or an ndarray")
+        if isinstance(a_min, ndarray) and a_min.shape != self.shape:
+            raise ValueError(
+                "`a_min` must have the same shape as the input array"
+            )
+        if isinstance(a_max, ndarray) and a_max.shape != self.shape:
+            raise ValueError(
+                "`a_max` must have the same shape as the input array"
+            )
+        if out is None:
+            out = ndarray(self.shape, self.dtype)
+        F = self._flat()
+        R = range(len(F))
+        if isinstance(a_min, ndarray) and isinstance(a_max, ndarray):
+            L = [min(a_max.flat[_], max(a_min.flat[_], F[_])) for _ in R]
+        elif isinstance(a_min, ndarray):
+            L = [min(a_max, max(a_min.flat[_], F[_])) for _ in R]
+        elif isinstance(a_max, ndarray):
+            L = [min(a_max.flat[_], max(a_min, F[_])) for _ in R]
+        else:
+            L = [min(a_max, max(a_min, _)) for _ in F]
+        out[:] = L
+        return out
 
     def copy(self) -> ndarray:
         """Return a deep copy of the array.
@@ -855,22 +962,22 @@ class ndarray:
         """Return a copy of the array collapsed into one dimension."""
         if order is not None:
             raise ValueError("Order needs to be None")
-        arr = ndarray((self.size,), self.dtype)
-        arr[:] = self
-        return arr
+        out = ndarray((self.size,), self.dtype)
+        out[:] = self
+        return out
 
     def item(self, args: None | int | tuple[int, int] = None) -> t.Any:
         """Return standard scalar Python object for ndarray object."""
-        arr = self.flatten()
+        out = self.flatten()
         if args is None:
             if self.size == 1:
-                return arr[0]
+                return out[0]
             else:
                 raise ValueError(
                     "Only array of size 1 can be converted to a Python scalar"
                 )
         if isinstance(args, int):
-            return arr[args]
+            return out[args]
         elif isinstance(args, tuple):
             return self[args[0], args[1]]
 
@@ -889,9 +996,9 @@ class ndarray:
 
     def view(
         self,
-        dtype: DTypeLike | None = None,
-        type: t.Any | None = None,
-    ) -> ndarray | None:
+        dtype: None | DTypeLike = None,
+        type: None | t.Any = None,
+    ) -> None | ndarray:
         """Create a new view of the ndarray with a specified data type.
 
         This method allows creating a new ndarray view with a specified
