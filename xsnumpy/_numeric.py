@@ -4,10 +4,52 @@ xsNumPy Array Functions
 
 Author: Akshay Mestry <xa@mes3.dev>
 Created on: Friday, December 06 2024
-Last updated on: Wednesday, December 11 2024
+Last updated on: Thursday, December 12 2024
 
-This module provides core functionality to create and manipulate xsNumPy
-arrays.
+This module provides essential array creation and initialization
+utilities for the `xsnumpy` package. It contains a suite of functions
+designed to construct and populate `ndarray` objects with various
+patterns and values, mimicking the functionality of NumPy's core array
+creation routines.
+
+This module serves as the foundation for generating arrays with specific
+shapes, patterns, and values. These utilities are essential for
+initializing numerical data structures, enabling users to quickly
+prototype and perform computations without the need for manual data
+entry. Inspired by NumPy's array creation APIs, this module brings
+similar functionality to `xsnumpy` with a focus on educational clarity,
+pure Python implementation, and modular design.
+
+The following functions are implemented in this module::
+
+    - Array Creation Functions
+    - Pattern-Based Array Functions
+    - Array Transformation Functions
+
+This module is designed to balance functionality and clarity, making it
+both a practical tool and an educational resource. Key principles
+guiding its implementation include::
+
+    - Consistency: Functions follow predictable naming conventions and
+      parameter usage, ensuring a seamless experience for users familiar
+      with NumPy.
+    - Flexibility: Support for multiple data types, shapes, and memory
+      layouts.
+    - Simplicity: Implementations prioritize readability and modularity,
+      enabling users to explore and extend functionality with ease.
+    - Educational Value: As part of the `xsnumpy` project, this module
+      emphasizes the learning of array mechanics and API design.
+
+The array creation functions in this module are ideal for::
+
+    - Initializing arrays for numerical computations.
+    - Creating test datasets for algorithm development.
+    - Prototyping applications that require structured numerical data.
+    - Exploring the mechanics of multidimensional array creation in Python.
+
+The implementations in this module are not optimized for performance and
+are intended for learning and exploratory purposes. For production-grade
+numerical computation, consider using NumPy directly.
 """
 
 from __future__ import annotations
@@ -17,6 +59,7 @@ import typing as t
 
 from xsnumpy import array_function_dispatch
 from xsnumpy import ndarray
+from xsnumpy._core import _BaseDType
 from xsnumpy._typing import DTypeLike
 from xsnumpy._typing import _ArrayType
 from xsnumpy._typing import _OrderKACF
@@ -28,9 +71,9 @@ from xsnumpy._utils import has_uniform_shape
 @array_function_dispatch
 def array(
     object: _ArrayType,
-    dtype: DTypeLike | None = None,
+    dtype: None | DTypeLike = None,
+    *,
     order: None | _OrderKACF = None,
-    shape: _ShapeLike | None = None,
 ) -> ndarray:
     """Create an ndarray from a Python iterable.
 
@@ -44,14 +87,14 @@ def array(
         multidimensional arrays.
     :param dtype: The desired data type of the array, defaults to
         `None`, in which case the type is inferred from the input data.
+    :param order: Row-major or column-major order, defaults to `None`.
     :return: A new array populated with data from the input iterable.
     :raises ValueError: If the input is not uniform in its nested
         dimensions.
     """
     if not has_uniform_shape(object):
         raise ValueError("Input data is not uniformly nested")
-    if shape is None:
-        shape = calc_shape_from_obj(object)
+    shape = calc_shape_from_obj(object)
     _flattened_buffer: list[t.Any] = []
 
     def _flatten(obj: _ArrayType) -> None:
@@ -70,24 +113,25 @@ def array(
         if any(filter(lambda x: isinstance(x, float), _flattened_buffer))
         else "int64"
     )
-    arr = ndarray(shape, dtype, order=order)
-    arr[:] = _flattened_buffer
-    return arr
+    out = ndarray(shape, dtype, order=order)
+    out[:] = _flattened_buffer
+    return out
 
 
 @array_function_dispatch
 def empty(
     shape: _ShapeLike,
-    dtype: DTypeLike | None = None,
+    dtype: None | DTypeLike = None,
     order: None | _OrderKACF = None,
 ) -> ndarray:
     """Create a new ndarray without initializing its values.
 
     The `empty` function returns a new `ndarray` with the specified
     shape, data type, and memory layout order. The contents of the array
-    are uninitialized and may contain random data. This function is
-    useful for performance-critical applications where immediate
-    initialization is not required.
+    are uninitialized and contain random data, in theory but
+    practically, it fills them with zeros because of `ctypes`. This
+    function is useful for performance-critical applications where
+    immediate initialization is not required.
 
     :param shape: The desired shape of the array. Can be an int for
         1D arrays or a sequence of ints for multidimensional arrays.
@@ -109,7 +153,7 @@ def empty(
 @array_function_dispatch
 def zeros(
     shape: _ShapeLike,
-    dtype: DTypeLike | None = None,
+    dtype: None | DTypeLike | _BaseDType = None,
     order: None | _OrderKACF = None,
 ) -> ndarray:
     """Create a new ndarray filled with zeros.
@@ -134,8 +178,9 @@ def zeros(
 @array_function_dispatch
 def zeros_like(
     a: ndarray,
-    dtype: DTypeLike | None = None,
+    dtype: None | DTypeLike = None,
     order: None | _OrderKACF = None,
+    shape: None | _ShapeLike = None,
 ) -> ndarray:
     """Create a new array with the same shape and type as a given array,
     filled with zeros.
@@ -151,26 +196,31 @@ def zeros_like(
         the data type of `a` is used, defaults to `None`.
     :param order: The desired memory layout for the new array, defaults
         to `None`.
+    :param shape: The desired shape of the array. Can be an int for
+        1D arrays or a sequence of ints for multidimensional arrays,
+        defaults to `None`.
     :return: A new array filled with zeros, matching the shape of `a` and
         the specified or inherited data type and memory layout.
     """
     dtype = a.dtype if dtype is None else dtype
-    return zeros(a.shape, dtype, order)
+    if shape is None:
+        shape = a.shape
+    return zeros(shape, dtype, order)
 
 
 @array_function_dispatch
 def ones(
     shape: _ShapeLike,
-    dtype: DTypeLike | None = None,
+    dtype: None | DTypeLike = None,
     order: None | _OrderKACF = None,
 ) -> ndarray:
     """Create a new ndarray filled with ones.
 
     The `ones` function creates an ndarray with the specified shape,
-    data type, and memory layout, initializing all its elements to zero.
+    data type, and memory layout, initializing all its elements to one.
     This function is particularly useful for scenarios requiring a blank
     array with known dimensions and type, where all elements must
-    initially be zero.
+    initially be ones.
 
     :param shape: The desired shape of the array. Can be an int for
         1D arrays or a sequence of ints for multidimensional arrays.
@@ -180,16 +230,17 @@ def ones(
     :return: An array initialized with ones with the specified
         properties.
     """
-    arr = empty(shape, dtype, order)
-    arr.fill(1)
-    return arr
+    out = empty(shape, dtype, order)
+    out.fill(1)
+    return out
 
 
 @array_function_dispatch
 def ones_like(
     a: ndarray,
-    dtype: DTypeLike | None = None,
+    dtype: None | DTypeLike = None,
     order: None | _OrderKACF = None,
+    shape: None | _ShapeLike = None,
 ) -> ndarray:
     """Create a new array with the same shape and type as a given array,
     filled with ones.
@@ -205,18 +256,52 @@ def ones_like(
         the data type of `a` is used, defaults to `None`.
     :param order: The desired memory layout for the new array, defaults
         to `None`.
+    :param shape: The desired shape of the array. Can be an int for
+        1D arrays or a sequence of ints for multidimensional arrays,
+        defaults to `None`.
     :return: A new array filled with ones, matching the shape of `a` and
         the specified or inherited data type and memory layout.
     """
     dtype = a.dtype if dtype is None else dtype
-    return ones(a.shape, dtype, order)
+    if shape is None:
+        shape = a.shape
+    return ones(shape, dtype, order)
+
+
+@array_function_dispatch
+def full(
+    shape: _ShapeLike,
+    fill_value: int,
+    dtype: None | DTypeLike = None,
+    order: None | _OrderKACF = None,
+) -> ndarray:
+    """Create a new ndarray filled with `fill_value`.
+
+    The `full` function creates an ndarray with the specified shape,
+    data type, and memory layout, initializing all its elements to
+    `fill_value`. This function is particularly useful for scenarios
+    requiring a blank array with known dimensions and type, where all
+    elements must initially be `fill_value`.
+
+    :param shape: The desired shape of the array. Can be an int for
+        1D arrays or a sequence of ints for multidimensional arrays.
+    :param dtype: The desired data type of the array, defaults to
+        `None` if not specified.
+    :param order: The memory layout of the array, defaults to `None`.
+    :return: An array initialized with ones with the specified
+        properties.
+    """
+    out = empty(shape, dtype, order)
+    out.fill(fill_value)
+    return out
 
 
 @array_function_dispatch
 def eye(
     N: int,
-    M: int | None = None,
-    dtype: DTypeLike | None = None,
+    M: None | int = None,
+    k: int = 0,
+    dtype: None | DTypeLike = None,
     order: None | _OrderKACF = None,
 ) -> ndarray:
     """Create a 2-D identity matrix with ones on the main diagonal and
@@ -229,6 +314,7 @@ def eye(
     :param N: The number of rows of the identity matrix.
     :param M: The number of columns of the identity matrix, defaults to
         `None` meaning M == N.
+    :param k: Diagonal offset, defaults to `0`.
     :param dtype: The desired data type of the output array, defaults to
         `None`.
     :param order: The desired memory layout for the output array,
@@ -239,21 +325,21 @@ def eye(
         raise ValueError("Size must be a positive integer")
     if M is None:
         M = N
-    arr = zeros((N, M), dtype, order)
+    out = zeros((N, M), dtype, order)
     for idx in range(N):
-        arr[idx, idx] = 1
-    return arr
+        out[idx, idx + k] = 1
+    return out
 
 
-identity = array_function_dispatch(eye)
+identity = array_function_dispatch(lambda n: eye(n, None))
 
 
 @array_function_dispatch
 def tri(
     N: int,
-    M: int | None = None,
+    M: None | int = None,
     k: int = 0,
-    dtype: DTypeLike | None = None,
+    dtype: None | DTypeLike | _BaseDType = None,
     order: None | _OrderKACF = None,
 ) -> ndarray:
     """Generate a lower triangular matrix with ones below and on the
@@ -266,7 +352,7 @@ def tri(
     :param N: The number of rows of the identity matrix.
     :param M: The number of columns of the identity matrix, defaults to
         `None` meaning M == N.
-    :param k: Diagonal offset, defaults to 0.
+    :param k: Diagonal offset, defaults to `0`.
     :param dtype: The desired data type of the output array, defaults to
         `None`.
     :param order: The desired memory layout for the output array,
@@ -279,13 +365,13 @@ def tri(
         raise ValueError("Size must be a positive integer")
     if M is None:
         M = N
-    arr = zeros((N, M), dtype, order)
+    out = zeros((N, M), dtype, order)
     for idx in range(N):
         start = max(0, idx + k)
         end = min(M, idx + 1 + k)
         if start < end:
-            arr[idx, start:end] = 1
-    return arr
+            out[idx, start:end] = 1
+    return out
 
 
 @array_function_dispatch
@@ -333,7 +419,7 @@ def diag(v: ndarray, k: int = 0) -> ndarray:
 
 
 @array_function_dispatch
-def arange(*args: t.Any, dtype: DTypeLike | None = None) -> ndarray:
+def arange(*args: t.Any, dtype: None | DTypeLike = None) -> ndarray:
     """Return evenly spaced values within a given range.
 
     The `arange` function generates a 1-D array containing evenly spaced
@@ -351,9 +437,9 @@ def arange(*args: t.Any, dtype: DTypeLike | None = None) -> ndarray:
     elif c_args > 3:
         raise TypeError("Too many input arguments")
     start, stop, step = (
-        (0.0, args[0], 1.0)
+        (0, args[0], 1)
         if c_args == 1
-        else (args[0], args[1], 1.0) if c_args == 2 else args
+        else (args[0], args[1], 1) if c_args == 2 else args
     )
     if step == 0:
         raise ValueError("Step size must not be zero")
@@ -394,13 +480,13 @@ def dot(a: ndarray, b: ndarray) -> ndarray:
             raise ValueError(
                 "Shapes are not aligned for matrix multiplication"
             )
-        arr = ndarray((a.shape[0], b.shape[1]), dtype=a.dtype)
+        out = ndarray((a.shape[0], b.shape[1]), dtype=a.dtype)
         for idx in range(a.shape[0]):
             for jdx in range(b.shape[1]):
-                arr[idx, jdx] = sum(
+                out[idx, jdx] = sum(
                     a[idx, kdx] * b[kdx, jdx] for kdx in range(a.shape[1])
                 )
-        return arr
+        return out
     elif a.ndim > 2 or b.ndim > 2:
         raise ValueError("Higher-dimensional dot product is not supported")
     else:
