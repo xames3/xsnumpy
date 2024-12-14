@@ -4,7 +4,7 @@ xsNumPy Array Functions
 
 Author: Akshay Mestry <xa@mes3.dev>
 Created on: Friday, December 06 2024
-Last updated on: Friday, December 13 2024
+Last updated on: Saturday, December 14 2024
 
 This module provides essential array creation and initialization
 utilities for the `xsnumpy` package. It contains a suite of functions
@@ -57,6 +57,7 @@ from __future__ import annotations
 import math
 import typing as t
 
+import xsnumpy as xp
 from xsnumpy import array_function_dispatch
 from xsnumpy import ndarray
 from xsnumpy._core import _BaseDType
@@ -95,7 +96,7 @@ def array(
     if not has_uniform_shape(object):
         raise ValueError("Input data is not uniformly nested")
     shape = calc_shape_from_obj(object)
-    _flattened_buffer: list[t.Any] = []
+    arraylike: list[t.Any] = []
 
     def _flatten(obj: _ArrayType) -> None:
         """Recursively flatten the input iterable."""
@@ -103,16 +104,17 @@ def array(
             for item in obj:
                 _flatten(item)
         else:
-            _flattened_buffer.append(obj)
+            arraylike.append(obj)
 
     _flatten(object)
-    dtype = (
-        "int32"
-        if all(isinstance(idx, int) for idx in _flattened_buffer)
-        else "float32"
-    )
+    if dtype is None:
+        dtype = (
+            xp.int32
+            if all(map(lambda x: isinstance(x, int), arraylike))
+            else xp.float32
+        )
     out = ndarray(shape, dtype, order=order)
-    out[:] = _flattened_buffer
+    out[:] = arraylike
     return out
 
 
