@@ -156,6 +156,19 @@ def _convert_dtype(
     return getattr(dtype, to)
 
 
+@array_function_dispatch
+def _appropriate_dtype(*args: t.Any) -> _BaseDType:
+    """Return appropriate dtype based on inferred type."""
+    if len(args) == 1:
+        return int32 if isinstance(args, int) else float32
+    elif len(args) > 1:
+        return (
+            int32
+            if all(map(lambda x: not str(x.dtype).startswith("float"), args))
+            else float32
+        )
+
+
 @set_module("xsnumpy")
 @array_function_dispatch
 class ndarray:
@@ -463,22 +476,26 @@ class ndarray:
         :raises ValueError: If `other` is an ndarray but its shape
             doesn't match `self.shape`.
         """
-        out = ndarray(self.shape, self.dtype)
         if isinstance(other, (int, builtins.float)):
+            dtype = _appropriate_dtype(self, other)
+            out = ndarray(self.shape, dtype)
             out[:] = [x + other for x in self._data]
+            return out
         elif isinstance(other, ndarray):
+            dtype = _appropriate_dtype(self, other)
+            out = ndarray(self.shape, dtype)
             if self.shape != other.shape:
                 raise ValueError(
                     "Operands couldn't broadcast together with shapes "
                     f"{self.shape} {other.shape}"
                 )
             out[:] = [x + y for x, y in zip(self.flat, other.flat)]
+            return out
         else:
             raise TypeError(
                 f"Unsupported operand type(s) for +: {type(self).__name__!r} "
                 f"and {type(other).__name__!r}"
             )
-        return out
 
     def __radd__(self, other: ndarray | int | builtins.float) -> ndarray:
         """Perform reverse addition, delegating to `__add__`.
@@ -992,7 +1009,7 @@ class ndarray:
             data.
         """
         # TODO(xames3): Write a flattening function to resolve nesting?
-        return []
+        raise NotImplementedError
 
     def view(
         self,
