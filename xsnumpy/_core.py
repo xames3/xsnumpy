@@ -4,7 +4,7 @@ xsNumPy N-Dimensional Array
 
 Author: Akshay Mestry <xa@mes3.dev>
 Created on: Monday, November 18 2024
-Last updated on: Thursday, December 12 2024
+Last updated on: Tuesday, December 17 2024
 
 This module implements the core functionality of the `xsnumpy` package,
 providing the foundational `ndarray` class, which serves as the building
@@ -154,19 +154,6 @@ def _convert_dtype(
             if dtype in _dtype:
                 return _dtype[idx]
     return getattr(dtype, to)
-
-
-@array_function_dispatch
-def _appropriate_dtype(*args: t.Any) -> _BaseDType:
-    """Return appropriate dtype based on inferred type."""
-    if len(args) == 1:
-        return int32 if isinstance(args, int) else float32
-    elif len(args) > 1:
-        return (
-            int32
-            if all(map(lambda x: not str(x.dtype).startswith("float"), args))
-            else float32
-        )
 
 
 @set_module("xsnumpy")
@@ -476,13 +463,24 @@ class ndarray:
         :raises ValueError: If `other` is an ndarray but its shape
             doesn't match `self.shape`.
         """
-        if isinstance(other, (int, builtins.float)):
-            dtype = _appropriate_dtype(self, other)
-            out = ndarray(self.shape, dtype)
+        if isinstance(other, int):
+            out = ndarray(self.shape, self.dtype)
+            out[:] = [x + other for x in self._data]
+            return out
+        elif isinstance(other, builtins.float):
+            out = ndarray(self.shape, float32)
             out[:] = [x + other for x in self._data]
             return out
         elif isinstance(other, ndarray):
-            dtype = _appropriate_dtype(self, other)
+            dtype = (
+                int32
+                if all(
+                    map(
+                        lambda x: isinstance(x, int), (self.dtype, other.dtype)
+                    )
+                )
+                else float32
+            )
             out = ndarray(self.shape, dtype)
             if self.shape != other.shape:
                 raise ValueError(
@@ -522,10 +520,25 @@ class ndarray:
         :raises ValueError: If `other` is an ndarray but its shape
             doesn't match `self.shape`.
         """
-        out = ndarray(self.shape, self.dtype)
-        if isinstance(other, (int, builtins.float)):
+        if isinstance(other, int):
+            out = ndarray(self.shape, self.dtype)
             out[:] = [x - other for x in self._data]
+            return out
+        elif isinstance(other, builtins.float):
+            out = ndarray(self.shape, float32)
+            out[:] = [x - other for x in self._data]
+            return out
         elif isinstance(other, ndarray):
+            dtype = (
+                int32
+                if all(
+                    map(
+                        lambda x: isinstance(x, int), (self.dtype, other.dtype)
+                    )
+                )
+                else float32
+            )
+            out = ndarray(self.shape, dtype)
             if self.shape != other.shape:
                 raise ValueError(
                     "Operands couldn't broadcast together with shapes "
@@ -564,10 +577,25 @@ class ndarray:
         :raises ValueError: If `other` is an ndarray but its shape
             doesn't match `self.shape`.
         """
-        out = ndarray(self.shape, self.dtype)
-        if isinstance(other, (int, builtins.float)):
+        if isinstance(other, int):
+            out = ndarray(self.shape, self.dtype)
             out[:] = [x * other for x in self._data]
+            return out
+        elif isinstance(other, builtins.float):
+            out = ndarray(self.shape, float32)
+            out[:] = [x * other for x in self._data]
+            return out
         elif isinstance(other, ndarray):
+            dtype = (
+                int32
+                if all(
+                    map(
+                        lambda x: isinstance(x, int), (self.dtype, other.dtype)
+                    )
+                )
+                else float32
+            )
+            out = ndarray(self.shape, dtype)
             if self.shape != other.shape:
                 raise ValueError(
                     "Operands couldn't broadcast together with shapes "
@@ -606,12 +634,27 @@ class ndarray:
         :raises ValueError: If `other` is an ndarray but its shape
             doesn't match `self.shape`.
         """
-        out = ndarray(self.shape, self.dtype)
-        if isinstance(other, (int, builtins.float)):
-            if other == 0:
-                raise ZeroDivisionError
+        if other == 0:
+            raise ZeroDivisionError
+        if isinstance(other, int):
+            out = ndarray(self.shape, self.dtype)
             out[:] = [x / other for x in self._data]
+            return out
+        elif isinstance(other, builtins.float):
+            out = ndarray(self.shape, float32)
+            out[:] = [x / other for x in self._data]
+            return out
         elif isinstance(other, ndarray):
+            dtype = (
+                int32
+                if all(
+                    map(
+                        lambda x: isinstance(x, int), (self.dtype, other.dtype)
+                    )
+                )
+                else float32
+            )
+            out = ndarray(self.shape, dtype)
             if self.shape != other.shape:
                 raise ValueError(
                     "Operands couldn't broadcast together with shapes "
@@ -642,12 +685,27 @@ class ndarray:
         :raises ValueError: If `other` is an ndarray but its shape
             doesn't match `self.shape`.
         """
-        out = ndarray(self.shape, self.dtype)
-        if isinstance(other, (int, builtins.float)):
-            if other == 0:
-                raise ZeroDivisionError
+        if other == 0:
+            raise ZeroDivisionError
+        if isinstance(other, int):
+            out = ndarray(self.shape, self.dtype)
             out[:] = [x // other for x in self._data]
+            return out
+        elif isinstance(other, builtins.float):
+            out = ndarray(self.shape, float32)
+            out[:] = [x // other for x in self._data]
+            return out
         elif isinstance(other, ndarray):
+            dtype = (
+                int32
+                if all(
+                    map(
+                        lambda x: isinstance(x, int), (self.dtype, other.dtype)
+                    )
+                )
+                else float32
+            )
+            out = ndarray(self.shape, dtype)
             if self.shape != other.shape:
                 raise ValueError(
                     "Operands couldn't broadcast together with shapes "
