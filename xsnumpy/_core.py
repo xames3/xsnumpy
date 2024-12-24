@@ -4,7 +4,7 @@ xsNumPy N-Dimensional Array
 
 Author: Akshay Mestry <xa@mes3.dev>
 Created on: Monday, November 18 2024
-Last updated on: Tuesday, December 17 2024
+Last updated on: Tuesday, December 24 2024
 
 This module implements the core functionality of the `xsnumpy` package,
 providing the foundational `ndarray` class, which serves as the building
@@ -63,6 +63,7 @@ from __future__ import annotations
 import builtins
 import ctypes
 import itertools
+import re
 import typing as t
 from collections import namedtuple
 from collections.abc import Iterable
@@ -306,7 +307,8 @@ class ndarray:
 
     def __str__(self) -> str:
         """Return a printable representation of ndarray object."""
-        return self._format_repr_as_str("", 0, self._offset).replace(",", "")
+        sanitized = "".join(re.findall(r"\[\[.*?\]\]", repr(self), re.DOTALL))
+        return sanitized.replace(",", "").replace(" " * 6, "")
 
     def __float__(self) -> None | builtins.float:
         """Convert the ndarray to a scalar float if it has exactly one
@@ -715,6 +717,142 @@ class ndarray:
         else:
             raise TypeError(
                 f"Unsupported operand type(s) for //: {type(self).__name__!r} "
+                f"and {type(other).__name__!r}"
+            )
+        return out
+
+    def __lt__(self, other: ndarray | int | builtins.float) -> ndarray:
+        """Perform element-wise less-than operation of the ndarray with
+        a scalar or another ndarray.
+
+        This method supports comparison with scalars (int or float) and
+        other ndarrays of the same shape. The resulting array is of the
+        same shape and dtype as the input.
+
+        :param other: The operand for comparison. Can be a scalar or an
+            ndarray of the same shape.
+        :return: A new boolean ndarray containing the result of the
+            element-wise less-than comparison.
+        :raises TypeError: If `other` is neither a scalar nor an
+            ndarray.
+        :raises ValueError: If `other` is an ndarray but its shape
+            doesn't match `self.shape`."""
+        out = ndarray(self.shape, bool)
+        if isinstance(other, (int, builtins.float)):
+            out[:] = [x < other for x in self._data]
+            return out
+        elif isinstance(other, ndarray):
+            if self.shape != other.shape:
+                raise ValueError(
+                    "Operands couldn't broadcast together with shapes "
+                    f"{self.shape} {other.shape}"
+                )
+            out[:] = [x < y for x, y in zip(self.flat, other.flat)]
+        else:
+            raise TypeError(
+                f"Unsupported operand type(s) for <: {type(self).__name__!r} "
+                f"and {type(other).__name__!r}"
+            )
+        return out
+
+    def __gt__(self, other: ndarray | int | builtins.float) -> ndarray:
+        """Perform element-wise greater-than operation of the ndarray
+        with a scalar or another ndarray.
+
+        This method supports comparison with scalars (int or float) and
+        other ndarrays of the same shape. The resulting array is of the
+        same shape and dtype as the input.
+
+        :param other: The operand for comparison. Can be a scalar or an
+            ndarray of the same shape.
+        :return: A new boolean ndarray containing the result of the
+            element-wise greater-than comparison.
+        :raises TypeError: If `other` is neither a scalar nor an
+            ndarray.
+        :raises ValueError: If `other` is an ndarray but its shape
+            doesn't match `self.shape`."""
+        out = ndarray(self.shape, bool)
+        if isinstance(other, (int, builtins.float)):
+            out[:] = [x > other for x in self._data]
+            return out
+        elif isinstance(other, ndarray):
+            if self.shape != other.shape:
+                raise ValueError(
+                    "Operands couldn't broadcast together with shapes "
+                    f"{self.shape} {other.shape}"
+                )
+            out[:] = [x > y for x, y in zip(self.flat, other.flat)]
+        else:
+            raise TypeError(
+                f"Unsupported operand type(s) for <: {type(self).__name__!r} "
+                f"and {type(other).__name__!r}"
+            )
+        return out
+
+    def __le__(self, other: ndarray | int | builtins.float) -> ndarray:
+        """Perform element-wise less-than-equal operation of the ndarray
+        with a scalar or another ndarray.
+
+        This method supports comparison with scalars (int or float) and
+        other ndarrays of the same shape. The resulting array is of the
+        same shape and dtype as the input.
+
+        :param other: The operand for comparison. Can be a scalar or an
+            ndarray of the same shape.
+        :return: A new boolean ndarray containing the result of the
+            element-wise less-than-equal comparison.
+        :raises TypeError: If `other` is neither a scalar nor an
+            ndarray.
+        :raises ValueError: If `other` is an ndarray but its shape
+            doesn't match `self.shape`."""
+        out = ndarray(self.shape, bool)
+        if isinstance(other, (int, builtins.float)):
+            out[:] = [x <= other for x in self._data]
+            return out
+        elif isinstance(other, ndarray):
+            if self.shape != other.shape:
+                raise ValueError(
+                    "Operands couldn't broadcast together with shapes "
+                    f"{self.shape} {other.shape}"
+                )
+            out[:] = [x <= y for x, y in zip(self.flat, other.flat)]
+        else:
+            raise TypeError(
+                f"Unsupported operand type(s) for <: {type(self).__name__!r} "
+                f"and {type(other).__name__!r}"
+            )
+        return out
+
+    def __ge__(self, other: ndarray | int | builtins.float) -> ndarray:
+        """Perform element-wise greater-than-equal operation of the
+        ndarray with a scalar or another ndarray.
+
+        This method supports comparison with scalars (int or float) and
+        other ndarrays of the same shape. The resulting array is of the
+        same shape and dtype as the input.
+
+        :param other: The operand for comparison. Can be a scalar or an
+            ndarray of the same shape.
+        :return: A new boolean ndarray containing the result of the
+            element-wise greater-than-equal comparison.
+        :raises TypeError: If `other` is neither a scalar nor an
+            ndarray.
+        :raises ValueError: If `other` is an ndarray but its shape
+            doesn't match `self.shape`."""
+        out = ndarray(self.shape, bool)
+        if isinstance(other, (int, builtins.float)):
+            out[:] = [x >= other for x in self._data]
+            return out
+        elif isinstance(other, ndarray):
+            if self.shape != other.shape:
+                raise ValueError(
+                    "Operands couldn't broadcast together with shapes "
+                    f"{self.shape} {other.shape}"
+                )
+            out[:] = [x >= y for x, y in zip(self.flat, other.flat)]
+        else:
+            raise TypeError(
+                f"Unsupported operand type(s) for <: {type(self).__name__!r} "
                 f"and {type(other).__name__!r}"
             )
         return out
