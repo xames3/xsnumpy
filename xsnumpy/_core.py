@@ -4,7 +4,7 @@ xsNumPy N-Dimensional Array
 
 Author: Akshay Mestry <xa@mes3.dev>
 Created on: Monday, November 18 2024
-Last updated on: Tuesday, December 24 2024
+Last updated on: Wednesday, December 25 2024
 
 This module implements the core functionality of the `xsnumpy` package,
 providing the foundational `ndarray` class, which serves as the building
@@ -63,6 +63,7 @@ from __future__ import annotations
 import builtins
 import ctypes
 import itertools
+import math
 import re
 import typing as t
 from collections import namedtuple
@@ -307,7 +308,7 @@ class ndarray:
 
     def __str__(self) -> str:
         """Return a printable representation of ndarray object."""
-        sanitized = "".join(re.findall(r"\[\[.*?\]\]", repr(self), re.DOTALL))
+        sanitized = "".join(re.findall(r"\[.*?\]", repr(self), re.DOTALL))
         return sanitized.replace(",", "").replace(" " * 6, "")
 
     def __float__(self) -> None | builtins.float:
@@ -717,6 +718,104 @@ class ndarray:
         else:
             raise TypeError(
                 f"Unsupported operand type(s) for //: {type(self).__name__!r} "
+                f"and {type(other).__name__!r}"
+            )
+        return out
+
+    def __mod__(self, other: ndarray | int | builtins.float) -> ndarray:
+        """Perform element-wise modulo operation of the ndarray with a
+        scalar or another ndarray.
+
+        This method supports modulo operation with scalars (int or float)
+        and other ndarrays of the same shape. The resulting array is of
+        the same shape and dtype as the input.
+
+        :param other: The operand for modulo operation. Can be a scalar or
+            an ndarray of the same shape.
+        :return: A new ndarray containing the result of the element-wise
+            modulo operation.
+        :raises TypeError: If `other` is neither a scalar nor an
+            ndarray.
+        :raises ValueError: If `other` is an ndarray but its shape
+            doesn't match `self.shape`.
+        """
+        if isinstance(other, int):
+            out = ndarray(self.shape, self.dtype)
+            out[:] = [x % other for x in self._data]
+            return out
+        elif isinstance(other, builtins.float):
+            out = ndarray(self.shape, float32)
+            out[:] = [x % other for x in self._data]
+            return out
+        elif isinstance(other, ndarray):
+            dtype = (
+                int32
+                if all(
+                    map(
+                        lambda x: isinstance(x, int), (self.dtype, other.dtype)
+                    )
+                )
+                else float32
+            )
+            out = ndarray(self.shape, dtype)
+            if self.shape != other.shape:
+                raise ValueError(
+                    "Operands couldn't broadcast together with shapes "
+                    f"{self.shape} {other.shape}"
+                )
+            out[:] = [x % y for x, y in zip(self.flat, other.flat)]
+        else:
+            raise TypeError(
+                f"Unsupported operand type(s) for %: {type(self).__name__!r} "
+                f"and {type(other).__name__!r}"
+            )
+        return out
+
+    def __pow__(self, other: ndarray | int | builtins.float) -> ndarray:
+        """Perform element-wise exponentation of the ndarray with a
+        scalar or another ndarray.
+
+        This method supports exponentation with scalars (int or float)
+        and other ndarrays of the same shape. The resulting array is of
+        the same shape and dtype as the input.
+
+        :param other: The operand for exponentation. Can be a scalar or
+            an ndarray of the same shape.
+        :return: A new ndarray containing the result of the element-wise
+            exponentation.
+        :raises TypeError: If `other` is neither a scalar nor an
+            ndarray.
+        :raises ValueError: If `other` is an ndarray but its shape
+            doesn't match `self.shape`.
+        """
+        if isinstance(other, int):
+            out = ndarray(self.shape, self.dtype)
+            out[:] = [x**other for x in self._data]
+            return out
+        elif isinstance(other, builtins.float):
+            out = ndarray(self.shape, float32)
+            out[:] = [x**other for x in self._data]
+            return out
+        elif isinstance(other, ndarray):
+            dtype = (
+                int32
+                if all(
+                    map(
+                        lambda x: isinstance(x, int), (self.dtype, other.dtype)
+                    )
+                )
+                else float32
+            )
+            out = ndarray(self.shape, dtype)
+            if self.shape != other.shape:
+                raise ValueError(
+                    "Operands couldn't broadcast together with shapes "
+                    f"{self.shape} {other.shape}"
+                )
+            out[:] = [x**y for x, y in zip(self.flat, other.flat)]
+        else:
+            raise TypeError(
+                f"Unsupported operand type(s) for **: {type(self).__name__!r} "
                 f"and {type(other).__name__!r}"
             )
         return out
@@ -1257,6 +1356,83 @@ class ndarray:
             return ndarray((size,), dtype, buffer=self, offset=offset)
         else:
             raise ValueError("Arrays can only be viewed with the same dtype")
+
+    def min(self, axis: None | int = None) -> int | builtins.float | ndarray:
+        """Return the minimum along a given axis."""
+        axis = axis if axis is not None else -1
+        if axis < 0:
+            return min(self.flat)
+        if not (0 <= axis < self.ndim):
+            raise ValueError(
+                f"Axis {axis} is out of bounds for array with "
+                f"{self.ndim} dimensions"
+            )
+        shape = tuple(dim for idx, dim in enumerate(self.shape) if idx != axis)
+        out = ndarray(shape, dtype=self.dtype)
+        indices = [slice(None)] * self.ndim
+        for idx in ndindex(*shape):
+            indices = list(idx[:axis]) + [slice(None)] + list(idx[axis:])
+            out[idx] = min(element for element in self[tuple(indices)])
+        return out
+
+    def max(self, axis: None | int = None) -> int | builtins.float | ndarray:
+        """Return the maximum along a given axis."""
+        axis = axis if axis is not None else -1
+        if axis < 0:
+            return max(self.flat)
+        if not (0 <= axis < self.ndim):
+            raise ValueError(
+                f"Axis {axis} is out of bounds for array with "
+                f"{self.ndim} dimensions"
+            )
+        shape = tuple(dim for idx, dim in enumerate(self.shape) if idx != axis)
+        out = ndarray(shape, dtype=self.dtype)
+        indices = [slice(None)] * self.ndim
+        for idx in ndindex(*shape):
+            indices = list(idx[:axis]) + [slice(None)] + list(idx[axis:])
+            out[idx] = max(element for element in self[tuple(indices)])
+        return out
+
+    def sum(self, axis: None | int = None) -> int | builtins.float | ndarray:
+        """Return the sum of the ndarray along a given axis."""
+        axis = axis if axis is not None else -1
+        if axis < 0:
+            return sum(self.flat)
+        if not (0 <= axis < self.ndim):
+            raise ValueError(
+                f"Axis {axis} is out of bounds for array with "
+                f"{self.ndim} dimensions"
+            )
+        shape = tuple(dim for idx, dim in enumerate(self.shape) if idx != axis)
+        out = ndarray(shape, dtype=self.dtype)
+        indices = [slice(None)] * self.ndim
+        for idx in ndindex(*shape):
+            indices = list(idx[:axis]) + [slice(None)] + list(idx[axis:])
+            out[idx] = sum(element for element in self[tuple(indices)])
+        return out
+
+    def prod(self, axis: None | int = None) -> int | builtins.float | ndarray:
+        """Return the product of the ndarray along a given axis."""
+        axis = axis if axis is not None else -1
+        if axis < 0:
+            return math.prod(self.flat)
+        if not (0 <= axis < self.ndim):
+            raise ValueError(
+                f"Axis {axis} is out of bounds for array with "
+                f"{self.ndim} dimensions"
+            )
+        shape = tuple(dim for idx, dim in enumerate(self.shape) if idx != axis)
+        out = ndarray(shape, dtype=self.dtype)
+        indices = [slice(None)] * self.ndim
+        for idx in ndindex(*shape):
+            indices = list(idx[:axis]) + [slice(None)] + list(idx[axis:])
+            out[idx] = math.prod(element for element in self[tuple(indices)])
+        return out
+
+    def mean(self, axis: None | int = None) -> builtins.float:
+        """Return the mean of the ndarray along a given axis."""
+        # TODO (xames3): This might be super flaky, haven't tested it.
+        return self.sum(axis) / self.size
 
 
 @set_module("xsnumpy")
