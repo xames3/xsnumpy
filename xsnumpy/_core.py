@@ -4,7 +4,7 @@ xsNumPy N-Dimensional Array
 
 Author: Akshay Mestry <xa@mes3.dev>
 Created on: Monday, November 18 2024
-Last updated on: Wednesday, December 25 2024
+Last updated on: Friday, December 27 2024
 
 This module implements the core functionality of the `xsnumpy` package,
 providing the foundational `ndarray` class, which serves as the building
@@ -1431,8 +1431,20 @@ class ndarray:
 
     def mean(self, axis: None | int = None) -> builtins.float:
         """Return the mean of the ndarray along a given axis."""
-        # TODO (xames3): This might be super flaky, haven't tested it.
-        return self.sum(axis) / self.size
+        if axis is None or axis < 0:
+            return self.sum(axis) / self.size
+        if not (0 <= axis < self.ndim):
+            raise ValueError(
+                f"Axis {axis} is out of bounds for array with "
+                f"{self.ndim} dimensions"
+            )
+        shape = tuple(dim for idx, dim in enumerate(self.shape) if idx != axis)
+        out = ndarray(shape, dtype=float32)
+        indices = [slice(None)] * self.ndim
+        for idx in ndindex(*shape):
+            indices = list(idx[:axis]) + [slice(None)] + list(idx[axis:])
+            out[idx] = sum(element for element in self[tuple(indices)])
+        return out / self.shape[axis]
 
 
 @set_module("xsnumpy")
