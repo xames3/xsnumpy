@@ -4,7 +4,7 @@ xsNumPy Array Functions
 
 Author: Akshay Mestry <xa@mes3.dev>
 Created on: Friday, December 06 2024
-Last updated on: Saturday, December 14 2024
+Last updated on: Friday, January 03 2025
 
 This module provides essential array creation and initialization
 utilities for the `xsnumpy` package. It contains a suite of functions
@@ -145,8 +145,6 @@ def empty(
         [1] The contents of the returned array are random and should
             not be used without proper initialization.
     """
-    if not isinstance(shape, t.Iterable):
-        shape = (shape,)
     return ndarray(shape, dtype, order=order)
 
 
