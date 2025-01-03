@@ -4,7 +4,7 @@ xsNumPy N-Dimensional Array
 
 Author: Akshay Mestry <xa@mes3.dev>
 Created on: Monday, November 18 2024
-Last updated on: Friday, December 27 2024
+Last updated on: Friday, January 03 2025
 
 This module implements the core functionality of the `xsnumpy` package,
 providing the foundational `ndarray` class, which serves as the building
@@ -64,7 +64,6 @@ import builtins
 import ctypes
 import itertools
 import math
-import re
 import typing as t
 from collections import namedtuple
 from collections.abc import Iterable
@@ -287,15 +286,7 @@ class ndarray:
 
     def __repr__(self) -> str:
         """Return a string representation of ndarray object."""
-        ws = max(
-            map(
-                len,
-                map(
-                    str,
-                    (self.data[_] for _ in range(self.size)),
-                ),
-            )
-        )
+        ws = max(len(str(self.data[idx])) for idx in range(self.size))
         s = self._format_repr_as_str("", 0, self._offset, 6, ws)
         if (
             self.dtype != float64
@@ -308,8 +299,8 @@ class ndarray:
 
     def __str__(self) -> str:
         """Return a printable representation of ndarray object."""
-        sanitized = "".join(re.findall(r"\[.*?\]", repr(self), re.DOTALL))
-        return sanitized.replace(",", "").replace(" " * 6, "")
+        ws = max(len(str(self.data[idx])) for idx in range(self.size))
+        return self._format_repr_as_str("", 0, self._offset, 0, ws)
 
     def __float__(self) -> None | builtins.float:
         """Convert the ndarray to a scalar float if it has exactly one
@@ -957,8 +948,8 @@ class ndarray:
         return out
 
     def _calculate_offset_and_strides(
-        self, key: int | slice | tuple[None | int | slice, ...]
-    ) -> tuple[int, tuple[int, ...], tuple[int, ...]]:
+        self, key: int | slice | tuple[None | int | slice, ...] | t.Ellipsis
+    ) -> tuple[int, _ShapeLike, _ShapeLike]:
         """Calculate offset, shape, and strides for an indexing
         operation.
 
@@ -977,11 +968,19 @@ class ndarray:
         strides: list[int] = []
         if not isinstance(key, tuple):
             key = (key,)
-        for dim in key:
-            if axis >= len(self._shape):
+        if Ellipsis in key:
+            ellipsis = key.index(Ellipsis)
+            pre = key[:ellipsis]
+            post = key[ellipsis + 1 :]
+            count = len(self.shape) - len(pre) - len(post)
+            if count < 0:
                 raise IndexError("Too many indices for array")
-            axissize = self._shape[axis]
-            if isinstance(dim, int):
+            key = pre + (slice(None),) * count + post
+        for dim in key:
+            if axis >= len(self._shape) and dim is not None:
+                raise IndexError("Too many indices for array")
+            axissize = self._shape[axis] if axis < len(self._shape) else None
+            if isinstance(dim, int) and axissize is not None:
                 if not (-axissize <= dim < axissize):
                     raise IndexError(
                         f"Index {dim} out of bounds for axis {axis}"
@@ -989,20 +988,15 @@ class ndarray:
                 dim = dim + axissize if dim < 0 else dim
                 offset += dim * self._strides[axis] // self.itemsize
                 axis += 1
-            elif isinstance(dim, slice):
+            elif isinstance(dim, slice) and axissize is not None:
                 start, stop, step = dim.indices(axissize)
                 shape.append(-(-(stop - start) // step))
                 strides.append(step * self._strides[axis])
                 offset += start * self._strides[axis] // self.itemsize
                 axis += 1
-            elif dim is Ellipsis:
-                raise TypeError("Ellipsis is not supported")
             elif dim is None:
                 shape.append(1)
-                stride = 1
-                for _stride in self._strides[axis:]:
-                    stride *= _stride
-                strides.append(stride)
+                strides.append(0)
             else:
                 raise TypeError(f"Invalid index type: {type(dim).__name__!r}")
         shape.extend(self.shape[axis:])
@@ -1039,12 +1033,49 @@ class ndarray:
         return values
 
     @property
-    def shape(self) -> tuple[int, ...]:
+    def shape(self) -> _ShapeLike:
         """Return shape of the array."""
         return self._shape
 
+    @shape.setter
+    def shape(self, value: _ShapeLike) -> None:
+        """Set a new shape for the ndarray."""
+        if value == self.shape:
+            return
+        if self.size != calc_size(value):
+            raise ValueError("New shape is incompatible with the current size")
+        if get_step_size(self) == 1:
+            self._shape = tuple(value)
+            self._strides = calc_strides(self._shape, self.itemsize)
+            return
+        shape = [dim for dim in self.shape if dim > 1]
+        strides = [
+            stride for dim, stride in zip(self.shape, self.strides) if dim > 1
+        ]
+        new_shape = [dim for dim in value if dim > 1]
+        if new_shape != shape:
+            raise AttributeError(
+                "New shape is incompatible with the current memory layout"
+            )
+        shape.append(1)
+        strides.append(strides[-1])
+        new_strides = []
+        idx = len(shape) - 1
+        for dim in reversed(value):
+            if dim == 1:
+                new_strides.append(strides[idx] * shape[idx])
+            else:
+                idx -= 1
+                new_strides.append(strides[idx])
+        if idx != -1:
+            raise AttributeError(
+                "New shape is incompatible with the current memory layout"
+            )
+        self._shape = tuple(value)
+        self._strides = tuple(reversed(new_strides))
+
     @property
-    def strides(self) -> tuple[int, ...]:
+    def strides(self) -> _ShapeLike:
         """Return the strides for traversing the array dimensions."""
         return self._strides
 
@@ -1429,7 +1460,7 @@ class ndarray:
             out[idx] = math.prod(element for element in self[tuple(indices)])
         return out
 
-    def mean(self, axis: None | int = None) -> builtins.float:
+    def mean(self, axis: None | int = None) -> builtins.float | ndarray:
         """Return the mean of the ndarray along a given axis."""
         if axis is None or axis < 0:
             return self.sum(axis) / self.size
@@ -1446,6 +1477,26 @@ class ndarray:
             out[idx] = sum(element for element in self[tuple(indices)])
         return out / self.shape[axis]
 
+    def reshape(self, shape: _ShapeLike) -> ndarray | None:
+        """Return a new view of the array with the specified shape.
+
+        This method attempts to reshape the array while keeping the data
+        layout intact. If the new shape is incompatible with the current
+        memory layout, a copy of the data is made to achieve the desired
+        shape.
+
+        :param shape: The desired shape for the array.
+        :return: A reshaped view of the array if possible; otherwise, a
+            reshaped copy.
+        """
+        out = self.view()
+        try:
+            out.shape = shape
+        except AttributeError:
+            out = self.copy()
+            out.shape = shape
+        return out
+
 
 @set_module("xsnumpy")
 @array_function_dispatch
@@ -1461,6 +1512,6 @@ class ndindex:
         """Initialize the `ndindex` object with shape."""
         self.shape = shape
 
-    def __iter__(self) -> t.Iterator[tuple[int, ...]]:
+    def __iter__(self) -> t.Iterator[_ShapeLike]:
         """Return an iterator over all possible indices."""
         return itertools.product(*(range(dim) for dim in self.shape))
