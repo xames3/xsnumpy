@@ -4,7 +4,7 @@ xsNumPy Utilities
 
 Author: Akshay Mestry <xa@mes3.dev>
 Created on: Monday, November 25 2024
-Last updated on: Friday, January 03 2025
+Last updated on: Saturday, January 04 2025
 
 This module provides utility functions designed to streamline and
 enhance the development process within the xsNumPy library. These
@@ -24,8 +24,19 @@ if t.TYPE_CHECKING:
     from xsnumpy import ndarray
     from xsnumpy._typing import _ArrayType
 
+__all__: list[str] = [
+    "e",
+    "inf",
+    "nan",
+    "newaxis",
+    "pi",
+]
 
-newaxis = array_function_dispatch(lambda: None)()
+e: float = math.e
+inf: float = float("inf")
+nan: float = float("nan")
+newaxis: t.NoneType = None
+pi: float = math.pi
 
 
 @array_function_dispatch
