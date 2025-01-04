@@ -4,7 +4,7 @@ xsNumPy N-Dimensional Array
 
 Author: Akshay Mestry <xa@mes3.dev>
 Created on: Monday, November 18 2024
-Last updated on: Friday, January 03 2025
+Last updated on: Saturday, January 04 2025
 
 This module implements the core functionality of the `xsnumpy` package,
 providing the foundational `ndarray` class, which serves as the building
@@ -106,6 +106,8 @@ def _dtype_str(self: _BaseDType) -> str:
 _BaseDType = namedtuple("_BaseDType", "short, numpy, ctypes, value")
 _BaseDType.__repr__ = _dtype_repr
 _BaseDType.__str__ = _dtype_str
+_BaseDType.__module__ = "xsnumpy"
+_BaseDType.__qualname__ = "dtype"
 
 _supported_dtypes: tuple[_BaseDType, ...] = (
     (bool := _BaseDType("b1", "bool", ctypes.c_bool, False)),
@@ -213,6 +215,10 @@ class ndarray:
         self._shape = tuple(int(dim) for dim in shape)
         if dtype is None:
             dtype = float32
+        elif isinstance(dtype, type):
+            dtype = globals()[
+                f"{dtype.__name__}{'32' if dtype != builtins.bool else ''}"
+            ]
         else:
             dtype = globals()[dtype]
         self._dtype = dtype
@@ -289,8 +295,8 @@ class ndarray:
         ws = max(len(str(self.data[idx])) for idx in range(self.size))
         s = self._format_repr_as_str("", 0, self._offset, 6, ws)
         if (
-            self.dtype != float64
-            and self.dtype != int64
+            self.dtype != float32
+            and self.dtype != int32
             and self.dtype != bool
         ):
             return f"array({s}, dtype={self.dtype.__str__()})"
