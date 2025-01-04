@@ -1,6 +1,6 @@
 .. Author: Akshay Mestry <xa@mes3.dev>
 .. Created on: Monday, November 18 2024
-.. Last updated on: Friday, January 03 2025
+.. Last updated on: Saturday, January 04 2025
 
 ===============================================================================
 xsNumPy
@@ -50,17 +50,19 @@ Features
 
 As of now, **xsNumPy** offers the following features:
 
-1. A core data structure
+N-dimensional array (ndarray)
+===============================================================================
 
-- **ndarray.** The central data structure representing N-dimensional
+- **xsnumpy.ndarray.** The central data structure representing N-dimensional
   arrays with support for:
 
   - Arbitrary shapes and data types.
   - Broadcasting for compatible operations.
 
-2. Array creation routines
+Array creation routines
+===============================================================================
 
-- **array.** Create an N-dimensional array.
+- **xsnumpy.array.** Create an N-dimensional array.
 
 .. code-block:: python
 
@@ -74,12 +76,10 @@ As of now, **xsNumPy** offers the following features:
     >>> xp.array([1, 2, 3], dtype=xp.bool)
     array([True, True, True])
 
-- **empty.** Create an uninitialized array of the given shape.
+- **xsnumpy.empty.** Create an uninitialized array of the given shape.
 
 .. code-block:: python
 
-    >>> import xsnumpy as xp
-    >>> 
     >>> xp.empty([2, 2])
     array([[0. , 0. ], 
            [0. , 0. ]])
@@ -87,7 +87,7 @@ As of now, **xsNumPy** offers the following features:
     array([[0, 0], 
            [0, 0]])
 
-- **zeros.** Create an array filled with zeros.
+- **xsnumpy.zeros.** Create an array filled with zeros.
 
 .. code-block:: python
 
@@ -99,7 +99,7 @@ As of now, **xsNumPy** offers the following features:
     >>> xp.zeros((5,), dtype=xp.int32)
     array([0, 0, 0, 0, 0])
 
-- **ones.** Create an array filled with ones.
+- **xsnumpy.ones.** Create an array filled with ones.
 
 .. code-block:: python
 
@@ -109,7 +109,7 @@ As of now, **xsNumPy** offers the following features:
     >>> xp.ones((5,))
     array([1. , 1. , 1. , 1. , 1. ])
 
-- **full.** Create an array filled with *fill_value*.
+- **xsnumpy.full.** Create an array filled with *fill_value*.
 
 .. code-block:: python
 
@@ -117,7 +117,7 @@ As of now, **xsNumPy** offers the following features:
     array([[10. , 10. ], 
            [10. , 10. ]])
 
-- **arange.** Generate evenly spaced values within a given range.
+- **xsnumpy.arange.** Generate evenly spaced values within a given range.
 
 .. code-block:: python
 
@@ -132,7 +132,8 @@ As of now, **xsNumPy** offers the following features:
     >>> xp.arange(0, 5, 0.5)
     array([0. , 0.5, 1. , 1.5, 2. , 2.5, 3. , 3.5, 4. , 4.5])
 
-- **eye.** Create a 2D array with ones on the diagonal and zeros elsewhere.
+- **xsnumpy.eye.** Create a 2D array with ones on the diagonal and zeros
+  elsewhere.
 
 .. code-block:: python
 
@@ -140,8 +141,8 @@ As of now, **xsNumPy** offers the following features:
     array([[1, 0], 
            [0, 1]])
 
-- **identity.** Create an identity matrix or 2D array with ones on the main
-  diagonal.
+- **xsnumpy.identity.** Create an identity matrix or 2D array with ones on the
+  main diagonal.
 
 .. code-block:: python
 
@@ -150,7 +151,7 @@ As of now, **xsNumPy** offers the following features:
            [0. , 1. , 0. ], 
            [0. , 0. , 1. ]])
 
-- **tri.** Generate a lower triangular matrix filled with ones.
+- **xsnumpy.tri.** Generate a lower triangular matrix filled with ones.
 
 .. code-block:: python
 
@@ -163,6 +164,323 @@ As of now, **xsNumPy** offers the following features:
            [1, 0, 0, 0, 0], 
            [0, 1, 0, 0, 0]])
 
+- **xsnumpy.diag.** Extract a diagonal or construct a diagonal array.
+
+.. code-block:: python
+
+    >>> a = xp.arange(9).reshape((3, 3))
+    >>> a
+    array([[0, 1, 2], 
+        [3, 4, 5], 
+        [6, 7, 8]])
+    >>> xp.diag(a)
+    array([0, 4, 8])
+    >>> xp.diag(a, k=1)
+    array([1, 5])
+
+Array attributes
+===============================================================================
+
+- **ndarray.shape.** Tuple of array dimensions.
+
+.. code-block:: python
+
+    >>> x = xp.array([1, 2, 3, 4])
+    >>> x.shape
+    (4,)
+    >>> y = xp.zeros((2, 3, 4))
+    >>> y.shape
+    (2, 3, 4)
+    >>> y.shape = (3, 8)
+    >>> y
+    array([[0. , 0. , 0. , 0. , 0. , 0. , 0. , 0. ], 
+           [0. , 0. , 0. , 0. , 0. , 0. , 0. , 0. ], 
+           [0. , 0. , 0. , 0. , 0. , 0. , 0. , 0. ]])
+
+- **ndarray.strides.** Tuple of bytes to step in each dimension when traversing
+  an array.
+
+.. code-block:: python
+
+    >>> y = xp.ones((2, 7))
+    >>> y
+    array([[1. , 1. , 1. , 1. , 1. , 1. , 1. ], 
+           [1. , 1. , 1. , 1. , 1. , 1. , 1. ]])
+    >>> y.strides
+    (28, 4)
+
+- **ndarray.ndim.** Number of array dimensions.
+
+.. code-block:: python
+
+    >>> x = xp.array([1, 2, 3])
+    >>> x.ndim
+    1
+    >>> y = xp.zeros((2, 3, 4))
+    >>> y.ndim
+    3
+
+- **ndarray.data.** Python buffer object pointing to the start of the array's
+  data.
+
+- **ndarray.size.** Number of elements in the array.
+
+.. code-block:: python
+
+    >>> x = xp.zeros((3, 5, 2))
+    >>> x.size
+    30
+
+- **ndarray.itemsize.** Length of one array element in bytes.
+
+.. code-block:: python
+
+    >>> x = xp.array([1, 2, 3], dtype=xp.float64)
+    >>> x.itemsize
+    8
+    >>> x = xp.array([1, 2, 3], dtype=xp.int16)
+    >>> x.itemsize
+    2
+
+- **ndarray.nbytes.** Total bytes consumed by the elements of the array.
+
+.. code-block:: python
+
+    >>> x = xp.zeros((3, 5, 2), dtype=xp.float32)
+    >>> x.nbytes
+    120
+
+- **ndarray.base.** Base object if memory is from some other object.
+
+.. code-block:: python
+
+    >>> x = xp.array([1, 2, 3, 4])
+    >>> x.base is None
+    True
+    >>> y = x[2:]
+    >>> y.base is x
+    True
+
+- **ndarray.dtype.** Data-type of the array's elements.
+
+.. code-block:: python
+
+    >>> x = xp.array([1, 2, 3, 4])
+    >>> x.dtype
+    dtype('int32')
+    >>> type(x.dtype)
+    <class 'xsnumpy.dtype'>
+
+Array methods
+===============================================================================
+
+- **ndarray.all().** Returns True if all elements evaluate to True.
+
+.. code-block:: python
+
+    >>> x = xp.array([[True, False], [True, True]])
+    >>> x.all()
+    False
+    >>> x.all(axis=0)
+    array([ True, False])
+    >>> x = xp.array([-1, 4, 5])
+    >>> x.all()
+    True
+
+- **ndarray.any().** Test whether any array element along a given axis
+  evaluates to True.
+
+.. code-block:: python
+
+    >>> x = xp.array([[True, False], [True, True]])
+    >>> x.any()
+    True
+    >>> x = xp.array([[True, False, True ], [False, False, False]])
+    >>> x.any(axis=0)
+    array([ True, False,  True])
+    >>> a = xp.array([[1, 0, 0], [0, 0, 1], [0, 0, 0]])
+    >>> a.any(axis=0)
+    array([ True, False,  True])
+
+- **ndarray.astype().** Copies an array to a specified data type.
+
+.. code-block:: python
+
+    >>> arr = xp.array([1, 2, 3])
+    >>> arr.astype(xp.float64)
+    array([1. , 2. , 3. ], dtype=float64)
+
+- **ndarray.fill().** Fill the array with a scalar value.
+
+.. code-block:: python
+
+    >>> a = xp.array([1, 2])
+    >>> a.fill(0)
+    >>> a
+    array([0, 0])
+
+- **ndarray.flatten().** Return a copy of the array collapsed into one
+  dimension.
+
+.. code-block:: python
+
+    >>> a = xp.array([[1, 2], [3, 4]])
+    >>> a.flatten()
+    array([1, 2, 3, 4])
+
+- **ndarray.item().** Copy an element of an array to a standard Python scalar
+  and return it.
+
+.. code-block:: python
+
+    >>> x = xp.array([[2, 2, 6], [1, 3, 6], [1, 0, 1]])
+    >>> x.item(3)
+    1
+    >>> x.item(7)
+    0
+    >>> x.item((0, 1))
+    2
+    >>> x.item((2, 2))
+    1
+
+- **ndarray.item().** Copy an element of an array to a standard Python scalar
+  and return it.
+
+.. code-block:: python
+
+    >>> x = xp.array([[2, 2, 6], [1, 3, 6], [1, 0, 1]])
+    >>> x.item(3)
+    1
+    >>> x.item(7)
+    0
+    >>> x.item((0, 1))
+    2
+    >>> x.item((2, 2))
+    1
+
+- **ndarray.min().** Return the minimum along a given axis.
+
+.. code-block:: python
+
+    >>> x = xp.array([[0, 1], [2, 3]])
+    >>> x.min()
+    0
+    >>> x.min(axis=0)
+    array([0, 1])
+    >>> x.min(axis=1)
+    array([0, 2])
+
+- **ndarray.max().** Return the maximum along a given axis.
+
+.. code-block:: python
+
+    >>> x = xp.array([[0, 1], [2, 3]])
+    >>> x.max()
+    3
+    >>> x.max(axis=0)
+    array([2, 3])
+    >>> x.max(axis=1)
+    array([1, 3])
+
+- **ndarray.sum().** Sum of array elements over a given axis.
+
+.. code-block:: python
+
+    >>> a = xp.array([0.5, 1.5])
+    >>> a.sum()
+    2.0
+    >>> a = xp.array([[0, 1], [0, 5]])
+    >>> a.sum()
+    6
+    >>> a.sum(axis=0)
+    array([0, 6])
+    >>> a.sum(axis=1)
+    array([1, 5])
+
+- **ndarray.prod().** Return the product of array elements over a given axis.
+
+.. code-block:: python
+
+    >>> a = xp.array([1., 2.])
+    >>> a.prod()
+    2.0
+    >>> a = xp.array([[1., 2.], [3., 4.]])
+    >>> a.prod()
+    24.0
+    >>> a.prod(axis=1)
+    array([2.  , 12. ])
+    >>> a.prod(axis=0)
+    array([3. , 8. ])
+
+- **ndarray.reshape().** Gives a new shape to an array without changing its
+  data.
+
+.. code-block:: python
+
+    >>> a = xp.arange(6).reshape((3, 2))
+    >>> a
+    array([[0, 1], 
+           [2, 3], 
+           [4, 5]])
+    >>> a = xp.array([[1, 2, 3], [4, 5, 6]])
+    >>> a.reshape((6,))
+    array([1, 2, 3, 4, 5, 6])
+
+Constants
+===============================================================================
+
+- **xsnumpy.e.** Euler's constant.
+
+.. code-block:: python
+
+    >>> xp.e
+    2.718281828459045
+
+- **xsnumpy.inf.** IEEE 754 floating point representation of (positive)
+  infinity.
+
+.. code-block:: python
+
+    >>> xp.inf
+    inf
+
+- **xsnumpy.nan.** IEEE 754 floating point representation of Not a Number
+  (NaN).
+
+.. code-block:: python
+
+    >>> xp.nan
+    nan
+
+- **xsnumpy.newaxis.** A convenient alias for None, useful for indexing arrays.
+
+.. code-block:: python
+
+    >>> xp.newaxis is None
+    True
+
+- **xsnumpy.pi.** Pi...
+
+.. code-block:: python
+
+    >>> xp.pi
+    3.141592653589793
+
+Linear algebra
+===============================================================================
+
+- **xsnumpy.dot.** Dot product of two arrays.
+
+.. code-block:: python
+
+    >>> xp.dot(3, 4)
+    12
+    >>> a = xp.array([[1, 0], [0, 1]])
+    >>> b = xp.array([[4, 1], [2, 2]])
+    >>> xp.dot(a, b)
+    array([[4, 1], 
+           [2, 2]])
+
 -------------------------------------------------------------------------------
 Usage and Documentation
 -------------------------------------------------------------------------------
@@ -172,6 +490,8 @@ of NumPy to a significant extent. Comprehensive docstrings are provided for
 each module and function, ensuring clarity and ease of understanding. Users
 are encouraged to delve into the code, experiment with it, and modify it to
 suit their learning curve.
+
+**Note.** xsNumPy cannot and should not be used as an alternative to NumPy.
 
 -------------------------------------------------------------------------------
 Contributions and Feedback
@@ -191,6 +511,14 @@ This project is inspired by the remarkable work done by the `NumPy
 development team`_. It is a tribute to their contributions to the field of
 machine learning and the open-source community at large.
 
-.. _NumPy: https://numpy.org
+-------------------------------------------------------------------------------
+License
+-------------------------------------------------------------------------------
+
+xsNumPy is licensed under the MIT License. See the `LICENSE`_ file for more
+details.
+
+.. _LICENSE: https://github.com/xames3/xsnumpy/blob/main/LICENSE
 .. _NumPy development team: https://numpy.org/doc/stable/dev/index.html
+.. _NumPy: https://numpy.org
 .. _pip: https://pip.pypa.io/en/stable/getting-started/
