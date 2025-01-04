@@ -4,7 +4,7 @@ xsNumPy
 
 Author: Akshay Mestry <xa@mes3.dev>
 Created on: Monday, November 18 2024
-Last updated on: Thursday, December 12 2024
+Last updated on: Saturday, January 04 2024
 
 A personal pet-project of mine to try and implement the basic and bare-
 bones functionality of NumPy just using pure Python. This module is a
@@ -37,6 +37,7 @@ from .version import version
 
 __all__: list[str] = [
     "array_function_dispatch",
+    "random",
     "typing",
     "version",
 ]
@@ -65,6 +66,9 @@ from ._numeric import *
 from ._utils import *
 
 __all__ += _core.__all__
+__all__ += _utils.__all__
+
+import xsnumpy._random as random
 
 
 def info(object: t.Callable[..., _T]) -> str:
