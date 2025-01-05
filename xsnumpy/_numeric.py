@@ -4,7 +4,7 @@ xsNumPy Array Functions
 
 Author: Akshay Mestry <xa@mes3.dev>
 Created on: Friday, December 06 2024
-Last updated on: Friday, January 03 2025
+Last updated on: Sunday, January 05 2025
 
 This module provides essential array creation and initialization
 utilities for the `xsnumpy` package. It contains a suite of functions
@@ -59,8 +59,8 @@ import typing as t
 
 import xsnumpy as xp
 from xsnumpy import array_function_dispatch
-from xsnumpy import ndarray
 from xsnumpy._core import _BaseDType
+from xsnumpy._core import ndarray
 from xsnumpy._typing import DTypeLike
 from xsnumpy._typing import _ArrayType
 from xsnumpy._typing import _OrderKACF
@@ -389,29 +389,26 @@ def diag(v: ndarray, k: int = 0) -> ndarray:
     :raise ValueError: If the input array `v` is not 1D or 2D.
     """
     if v.ndim == 1:
-        size = v.shape[0]
-        out = zeros((size + abs(k), size + abs(k)), dtype=v.dtype)
+        size = len(v)
+        nrows = size + max(0, k)
+        ncols = size + max(0, -k)
+        out = zeros((nrows, ncols), dtype=v.dtype)
         for idx in range(size):
-            out[(idx + k, idx) if k < 0 else (idx, idx + k)] = v[idx]
+            row, col = (idx + k, idx) if k < 0 else (idx, idx + k)
+            out[row, col] = v[idx]
         return out
     elif v.ndim == 2:
         rows, cols = v.shape
         if k >= 0:
-            start, end = k, min(rows, cols + k)
-            return ndarray(
-                (end - start,),
-                dtype=v.dtype,
-                buffer=v,
-                offset=k * v.strides[1],
-            )
+            start = max(0, k)
+            end = min(rows, cols + k)
+            size = max(0, end - start)
+            return array([v[i, i + k] for i in range(size)])
         else:
-            start, end = -k, min(rows + k, cols)
-            return ndarray(
-                (end - start,),
-                dtype=v.dtype,
-                buffer=v,
-                offset=-k * v.strides[0],
-            )
+            start = max(0, -k)
+            end = min(rows + k, cols)
+            size = max(0, end - start)
+            return array([v[i - k, i] for i in range(size)])
     else:
         raise ValueError("Input array must be 1D or 2D")
 
@@ -453,7 +450,55 @@ def arange(*args: t.Any, dtype: None | DTypeLike = None) -> ndarray:
 
 
 @array_function_dispatch
-def dot(a: ndarray, b: ndarray) -> ndarray:
+def matmul(a: ndarray, b: ndarray) -> ndarray | int | float:
+    """Compute the matrix multiplication of two arrays.
+
+    For 1D arrays, this function returns the inner product of the
+    vectors. For 2D arrays, it performs matrix multiplication.
+    For higher-dimensional arrays, it computes the matrix multiplication
+    product along the last axis of `a` and the second-to-last axis of
+    `b`.
+
+    :param a: First input array.
+    :param b: Second input array.
+    :return: The matrix multiplication product of `a` and `b`.
+    :raises ValueError: If the shapes of `a` and `b` are not aligned for
+        matrix multiplication computation.
+
+    .. note::
+
+        [1] The output's shape depends on the broadcasting rules and the
+            alignment of axes during computation.
+    """
+    if isinstance(a, ndarray) and isinstance(b, ndarray):
+        if a.ndim == 1 and b.ndim == 1:
+            if a.shape[0] != b.shape[0]:
+                raise ValueError(
+                    "Shapes of 1D arrays must be the same for dot product"
+                )
+            return sum(a[idx] * b[idx] for idx in range(a.shape[0]))
+        elif a.ndim == 2 and b.ndim == 2:
+            if a.shape[1] != b.shape[0]:
+                raise ValueError(
+                    "Shapes are not aligned for matrix multiplication"
+                )
+            out = ndarray((a.shape[0], b.shape[1]), dtype=a.dtype)
+            for idx in range(a.shape[0]):
+                for jdx in range(b.shape[1]):
+                    out[idx, jdx] = sum(
+                        a[idx, kdx] * b[kdx, jdx] for kdx in range(a.shape[1])
+                    )
+            return out
+        elif a.ndim > 2 or b.ndim > 2:
+            raise ValueError("Higher-dimensional dot product is not supported")
+        else:
+            raise ValueError("Invalid shapes for dot product")
+    else:
+        raise ValueError("Input operands does not have enough dimensions")
+
+
+@array_function_dispatch
+def dot(a: ndarray, b: ndarray) -> ndarray | int | float:
     """Compute the dot product of two arrays.
 
     For 1D arrays, this function returns the inner product of the
@@ -472,25 +517,254 @@ def dot(a: ndarray, b: ndarray) -> ndarray:
         [1] The output's shape depends on the broadcasting rules and the
             alignment of axes during computation.
     """
-    if a.ndim == 1 and b.ndim == 1:
-        if a.shape[0] != b.shape[0]:
-            raise ValueError(
-                "Shapes of 1D arrays must be the same for dot product"
-            )
-        return sum(a[idx] * b[idx] for idx in range(a.shape[0]))
-    elif a.ndim == 2 and b.ndim == 2:
-        if a.shape[1] != b.shape[0]:
-            raise ValueError(
-                "Shapes are not aligned for matrix multiplication"
-            )
-        out = ndarray((a.shape[0], b.shape[1]), dtype=a.dtype)
-        for idx in range(a.shape[0]):
-            for jdx in range(b.shape[1]):
-                out[idx, jdx] = sum(
-                    a[idx, kdx] * b[kdx, jdx] for kdx in range(a.shape[1])
+    try:
+        return matmul(a, b)
+    except ValueError:
+        return a * b
+
+
+@array_function_dispatch
+def add(x1: ndarray, x2: ndarray) -> ndarray | int | float:
+    """Add arguments element-wise.
+
+    For 1D arrays, this function returns the inner sum or addition of
+    the vectors. For 2D arrays, it performs addition element-wise.
+    For higher-dimensional arrays, it computes the addition along the
+    last axis of `x1` and the second-to-last axis of `x2`.
+
+    :param x1: First input array.
+    :param x2: Second input array.
+    :return: The element-wise addition of `x1` and `x2`.
+    :raises ValueError: If the shapes of `x1` and `x2` are not aligned
+        for addition.
+
+    .. note::
+
+        [1] The output's shape depends on the broadcasting rules and the
+            alignment of axes during computation.
+    """
+    try:
+        if x1.ndim == 1 and x2.ndim == 1:
+            if x1.shape[0] != x2.shape[0]:
+                raise ValueError(
+                    "Shapes of 1D arrays must be the same for addition"
                 )
-        return out
-    elif a.ndim > 2 or b.ndim > 2:
-        raise ValueError("Higher-dimensional dot product is not supported")
-    else:
-        raise ValueError("Invalid shapes for dot product")
+            return array([idx + jdx for idx, jdx in zip(x1.flat, x2.flat)])
+        elif x1.ndim == 2 and x2.ndim == 2:
+            if x1.shape[1] != x2.shape[0]:
+                raise ValueError("Shapes are not aligned for addition")
+            out = ndarray((x1.shape[0], x2.shape[1]), dtype=x1.dtype)
+            for idx in range(x1.shape[0]):
+                for jdx in range(x2.shape[1]):
+                    arr = []
+                    for kdx in range(x1.shape[1]):
+                        arr.append(x1[idx, kdx] + x2[kdx, jdx])
+                    out[idx, jdx] = arr
+            return out
+        elif x1.ndim > 2 or x2.ndim > 2:
+            raise ValueError("Higher-dimensional addition is not supported")
+        else:
+            raise ValueError("Invalid shapes for addition")
+    except (AttributeError, TypeError):
+        return x1 + x2
+
+
+@array_function_dispatch
+def subtract(x1: ndarray, x2: ndarray) -> ndarray | int | float:
+    """Subtract arguments element-wise.
+
+    For 1D arrays, this function returns the inner subtraction of
+    the vectors. For 2D arrays, it performs subtraction element-wise.
+    For higher-dimensional arrays, it computes the subtraction along the
+    last axis of `x1` and the second-to-last axis of `x2`.
+
+    :param x1: First input array.
+    :param x2: Second input array.
+    :return: The element-wise subtraction of `x1` and `x2`.
+    :raises ValueError: If the shapes of `x1` and `x2` are not aligned
+        for subtraction.
+
+    .. note::
+
+        [1] The output's shape depends on the broadcasting rules and the
+            alignment of axes during computation.
+    """
+    try:
+        if x1.ndim == 1 and x2.ndim == 1:
+            if x1.shape[0] != x2.shape[0]:
+                raise ValueError(
+                    "Shapes of 1D arrays must be the same for subtraction"
+                )
+            return array([idx - jdx for idx, jdx in zip(x1.flat, x2.flat)])
+        elif x1.ndim == 2 and x2.ndim == 2:
+            if x1.shape[1] != x2.shape[0]:
+                raise ValueError("Shapes are not aligned for subtraction")
+            out = ndarray((x1.shape[0], x2.shape[1]), dtype=x1.dtype)
+            for idx in range(x1.shape[0]):
+                for jdx in range(x2.shape[1]):
+                    arr = []
+                    for kdx in range(x1.shape[1]):
+                        arr.append(x1[idx, kdx] - x2[kdx, jdx])
+                    out[idx, jdx] = arr
+            return out
+        elif x1.ndim > 2 or x2.ndim > 2:
+            raise ValueError("Higher-dimensional subtraction is not supported")
+        else:
+            raise ValueError("Invalid shapes for subtraction")
+    except (AttributeError, TypeError):
+        return x1 - x2
+
+
+@array_function_dispatch
+def multiply(x1: ndarray, x2: ndarray) -> ndarray | int | float:
+    """Multiply arguments element-wise.
+
+    For 1D arrays, this function returns the inner multiplication of
+    the vectors. For 2D arrays, it performs multiplication element-wise.
+    For higher-dimensional arrays, it computes the multiplication along
+    the last axis of `x1` and the second-to-last axis of `x2`.
+
+    :param x1: First input array.
+    :param x2: Second input array.
+    :return: The element-wise multiplication of `x1` and `x2`.
+    :raises ValueError: If the shapes of `x1` and `x2` are not aligned
+        for multiplication.
+
+    .. note::
+
+        [1] The output's shape depends on the broadcasting rules and the
+            alignment of axes during computation.
+    """
+    try:
+        if x1.ndim == 1 and x2.ndim == 1:
+            if x1.shape[0] != x2.shape[0]:
+                raise ValueError(
+                    "Shapes of 1D arrays must be the same for multiplication"
+                )
+            return array([idx * jdx for idx, jdx in zip(x1.flat, x2.flat)])
+        elif x1.ndim == 2 and x2.ndim == 2:
+            if x1.shape[1] != x2.shape[0]:
+                raise ValueError("Shapes are not aligned for multiplication")
+            out = ndarray((x1.shape[0], x2.shape[1]), dtype=x1.dtype)
+            for idx in range(x1.shape[0]):
+                for jdx in range(x2.shape[1]):
+                    arr = []
+                    for kdx in range(x1.shape[1]):
+                        arr.append(x1[idx, kdx] * x2[kdx, jdx])
+                    out[idx, jdx] = arr
+            return out
+        elif x1.ndim > 2 or x2.ndim > 2:
+            raise ValueError(
+                "Higher-dimensional multiplication is not supported"
+            )
+        else:
+            raise ValueError("Invalid shapes for multiplication")
+    except (AttributeError, TypeError):
+        return x1 * x2
+
+
+@array_function_dispatch
+def divide(x1: ndarray, x2: ndarray) -> ndarray | float:
+    """Divide arguments element-wise.
+
+    For 1D arrays, this function returns the inner division of
+    the vectors. For 2D arrays, it performs division element-wise.
+    For higher-dimensional arrays, it computes the division along the
+    last axis of `x1` and the second-to-last axis of `x2`.
+
+    :param x1: First input array.
+    :param x2: Second input array.
+    :return: The element-wise division of `x1` and `x2`.
+    :raises ValueError: If the shapes of `x1` and `x2` are not aligned
+        for division.
+
+    .. note::
+
+        [1] The output's shape depends on the broadcasting rules and the
+            alignment of axes during computation.
+    """
+    try:
+        if x1.ndim == 1 and x2.ndim == 1:
+            if x1.shape[0] != x2.shape[0]:
+                raise ValueError(
+                    "Shapes of 1D arrays must be the same for division"
+                )
+            tmp = []
+            for idx, jdx in zip(x1.flat, x2.flat):
+                try:
+                    tmp.append(idx / jdx)
+                except ZeroDivisionError:
+                    tmp.append(xp.inf)
+            return array(tmp)
+        elif x1.ndim == 2 and x2.ndim == 2:
+            if x1.shape[1] != x2.shape[0]:
+                raise ValueError("Shapes are not aligned for division")
+            out = ndarray((x1.shape[0], x2.shape[1]), dtype=x1.dtype)
+            for idx in range(x1.shape[0]):
+                for jdx in range(x2.shape[1]):
+                    arr = []
+                    for kdx in range(x1.shape[1]):
+                        try:
+                            arr.append(x1[idx, kdx] / x2[kdx, jdx])
+                        except ZeroDivisionError:
+                            arr.append(xp.inf)
+                    out[idx, jdx] = arr
+            return out
+        elif x1.ndim > 2 or x2.ndim > 2:
+            raise ValueError("Higher-dimensional division is not supported")
+        else:
+            raise ValueError("Invalid shapes for division")
+    except (AttributeError, TypeError):
+        return x1 / x2
+
+
+truedivide = divide
+
+
+@array_function_dispatch
+def power(x1: ndarray, x2: ndarray) -> ndarray | int | float:
+    """First array elements raised to powers from second array,
+    element-wise.
+
+    For 1D arrays, this function returns the exponentiation of the
+    vectors. For 2D arrays, it performs exponentiation element-wise.
+    For higher-dimensional arrays, it computes the exponentiation along
+    the last axis of `x1` and the second-to-last axis of `x2`.
+
+    :param x1: First input array.
+    :param x2: Second input array.
+    :return: The element-wise exponentiation of `x1` and `x2`.
+    :raises ValueError: If the shapes of `x1` and `x2` are not aligned
+        for exponentiation.
+
+    .. note::
+
+        [1] The output's shape depends on the broadcasting rules and the
+            alignment of axes during computation.
+    """
+    try:
+        if x1.ndim == 1 and x2.ndim == 1:
+            if x1.shape[0] != x2.shape[0]:
+                raise ValueError(
+                    "Shapes of 1D arrays must be the same for exponentiation"
+                )
+            return array([idx**jdx for idx, jdx in zip(x1.flat, x2.flat)])
+        elif x1.ndim == 2 and x2.ndim == 2:
+            if x1.shape[1] != x2.shape[0]:
+                raise ValueError("Shapes are not aligned for exponentiation")
+            out = ndarray((x1.shape[0], x2.shape[1]), dtype=x1.dtype)
+            for idx in range(x1.shape[0]):
+                for jdx in range(x2.shape[1]):
+                    arr = []
+                    for kdx in range(x1.shape[1]):
+                        arr.append(x1[idx, kdx] ** x2[kdx, jdx])
+                    out[idx, jdx] = arr
+            return out
+        elif x1.ndim > 2 or x2.ndim > 2:
+            raise ValueError(
+                "Higher-dimensional exponentiation is not supported"
+            )
+        else:
+            raise ValueError("Invalid shapes for exponentiation")
+    except (AttributeError, TypeError):
+        return x1**x2

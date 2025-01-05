@@ -4,7 +4,7 @@ xsNumPy N-Dimensional Array
 
 Author: Akshay Mestry <xa@mes3.dev>
 Created on: Monday, November 18 2024
-Last updated on: Saturday, January 04 2025
+Last updated on: Sunday, January 05 2025
 
 This module implements the core functionality of the `xsnumpy` package,
 providing the foundational `ndarray` class, which serves as the building
@@ -68,6 +68,7 @@ import typing as t
 from collections import namedtuple
 from collections.abc import Iterable
 
+import xsnumpy as xp
 from xsnumpy import array_function_dispatch
 from xsnumpy._typing import DTypeLike
 from xsnumpy._typing import _OrderKACF
@@ -660,7 +661,13 @@ class ndarray:
                     "Operands couldn't broadcast together with shapes "
                     f"{self.shape} {other.shape}"
                 )
-            out[:] = [x / y for x, y in zip(self.flat, other.flat)]
+            arr = []
+            for x, y in zip(self.flat, other.flat):
+                try:
+                    arr.append(x / y)
+                except ZeroDivisionError:
+                    arr.append(xp.inf)
+            out[:] = arr
         else:
             raise TypeError(
                 f"Unsupported operand type(s) for /: {type(self).__name__!r} "
@@ -711,7 +718,13 @@ class ndarray:
                     "Operands couldn't broadcast together with shapes "
                     f"{self.shape} {other.shape}"
                 )
-            out[:] = [x // y for x, y in zip(self.flat, other.flat)]
+            arr = []
+            for x, y in zip(self.flat, other.flat):
+                try:
+                    arr.append(x // y)
+                except ZeroDivisionError:
+                    arr.append(xp.inf)
+            out[:] = arr
         else:
             raise TypeError(
                 f"Unsupported operand type(s) for //: {type(self).__name__!r} "
@@ -1158,6 +1171,11 @@ class ndarray:
                 for dim in range(subview.shape[0]):
                     subviews.append(subview[dim])
 
+    @property
+    def T(self) -> ndarray:
+        """View of the transposed array."""
+        return self.transpose()
+
     def all(self, axis: None | int = None) -> builtins.bool | ndarray:
         """Return True if all elements evaluate to True."""
         if axis is None:
@@ -1340,8 +1358,19 @@ class ndarray:
         :return: A nested Python list representation of the ndarray's
             data.
         """
-        # TODO(xames3): Write a flattening function to resolve nesting?
-        raise NotImplementedError
+        comprehensions = 0
+        shape = list(self.shape).copy()
+        comprehension = list(self._data).copy()
+        skip = self.size // shape[-1]
+        while comprehensions < len(self.shape) - 1:
+            comprehension = [
+                comprehension[idx * shape[-1] : idx * shape[-1] + shape[-1]]
+                for idx in range(skip)
+            ]
+            shape.pop()
+            skip = len(comprehension) // shape[-1]
+            comprehensions += 1
+        return comprehension
 
     def view(
         self,
@@ -1502,6 +1531,44 @@ class ndarray:
             out = self.copy()
             out.shape = shape
         return out
+
+    def _view(self, shape: _ShapeLike, strides: _ShapeLike) -> ndarray:
+        """
+        Create a new view of the array with the specified shape and
+        strides.
+
+        :param shape: The shape of the new view.
+        :param strides: The strides of the new view.
+        :return: A new ndarray view.
+        """
+        out = self.__class__.__new__(self.__class__)
+        out._shape = shape
+        out._strides = strides
+        out._data = self._data
+        out._dtype = self._dtype
+        out._offset = self._offset
+        out._itemsize = self._itemsize
+        return out
+
+    def transpose(self, axes: None | _ShapeLike = None) -> ndarray:
+        """Transpose the array by permuting its axes.
+
+        This method returns a view of the array with its axes permuted.
+        If no axes are specified, the axes are reversed (i.e., equivalent
+        to a full transpose).
+
+        :param axes: A tuple specifying the permutation of axes,
+            defaults to `None`.
+        :return: A new ndarray view with transposed axes.
+        :raises ValueError: If the provided axes are invalid.
+        """
+        if axes is None:
+            axes = tuple(reversed(range(self.ndim)))
+        elif sorted(axes) != list(range(self.ndim)):
+            raise ValueError("Invalid axes permutation")
+        shape = tuple(self.shape[axis] for axis in axes)
+        strides = tuple(self.strides[axis] for axis in axes)
+        return self._view(shape=shape, strides=strides)
 
 
 @set_module("xsnumpy")

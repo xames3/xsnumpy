@@ -1,6 +1,6 @@
 .. Author: Akshay Mestry <xa@mes3.dev>
 .. Created on: Monday, November 18 2024
-.. Last updated on: Saturday, January 04 2025
+.. Last updated on: Sunday, January 05 2025
 
 ===============================================================================
 xsNumPy
@@ -271,6 +271,18 @@ Array attributes
     >>> type(x.dtype)
     <class 'xsnumpy.dtype'>
 
+- **ndarray.T.** View of the transposed array.
+
+.. code-block:: python
+
+    >>> a = xp.array([[1, 2], [3, 4]])
+    >>> a
+    array([[1, 2], 
+           [3, 4]])
+    >>> a.T
+    array([[1, 3], 
+           [2, 4]])
+
 Array methods
 ===============================================================================
 
@@ -426,6 +438,24 @@ Array methods
     >>> a.reshape((6,))
     array([1, 2, 3, 4, 5, 6])
 
+- **ndarray.transpose().** Returns an array with axes transposed.
+
+.. code-block:: python
+
+    >>> a = xp.array([[1, 2], [3, 4]])
+    >>> a
+    array([[1, 2], 
+           [3, 4]])
+    >>> a.transpose()
+    array([[1, 3], 
+           [2, 4]])
+    >>> a = xp.array([1, 2, 3, 4])
+    >>> a.transpose()
+    array([1, 2, 3, 4])
+    >>> a = xp.ones((1, 2, 3))
+    >>> a.transpose((1, 0, 2)).shape
+    (2, 1, 3)
+
 Constants
 ===============================================================================
 
@@ -481,6 +511,77 @@ Linear algebra
     array([[4, 1], 
            [2, 2]])
 
+- **xsnumpy.matmul.** Matrix multiplication product of two arrays.
+
+.. code-block:: python
+
+    >>> a = xp.array([[1, 0], [0, 1]])
+    >>> b = xp.array([[4, 1], [2, 2]])
+    >>> xp.matmul(a, b)
+    array([[4, 1], 
+           [2, 2]])
+
+- **xsnumpy.add.** Add arguments element-wise.
+
+.. code-block:: python
+
+    >>> xp.add(3, 4)
+    7
+    >>> a = xp.array([[1, 0], [0, 1]])
+    >>> b = xp.array([[4, 1], [2, 2]])
+    >>> xp.add(a, b)
+    array([[5. , 1. ], 
+           [2. , 3. ]])
+
+- **xsnumpy.subtract.** Subtract arguments element-wise.
+
+.. code-block:: python
+
+    >>> xp.subtract(3, 4)
+    -1
+    >>> a = xp.array([[1, 0], [0, 1]])
+    >>> b = xp.array([[4, 1], [2, 2]])
+    >>> xp.subtract(a, b)
+    array([[-3. , -1. ], 
+           [-2. , -1. ]])
+
+- **xsnumpy.multiply.** Multiply arguments element-wise.
+
+.. code-block:: python
+
+    >>> xp.multiply(3, 4)
+    12
+    >>> a = xp.array([[1, 0], [0, 1]])
+    >>> b = xp.array([[4, 1], [2, 2]])
+    >>> xp.multiply(a, b)
+    array([[4. , 0. ], 
+           [0. , 2. ]])
+
+- **xsnumpy.divide.** Divide arguments element-wise.
+
+.. code-block:: python
+
+    >>> xp.divide(4, 4)
+    1.0
+    >>> a = xp.array([[1, 0], [0, 1]])
+    >>> b = xp.array([[4, 1], [2, 2]])
+    >>> xp.divide(a, b)
+    array([[0.25, 0.  ], 
+           [0.  ,  0.5]])
+
+- **xsnumpy.power.** First array elements raised to powers from second array,
+  element-wise.
+
+.. code-block:: python
+
+    >>> xp.power(3, 4)
+    81
+    >>> a = xp.array([[1, 0], [0, 1]])
+    >>> b = xp.array([[4, 1], [2, 2]])
+    >>> xp.power(a, b)
+    array([[1. , 0. ], 
+           [0. , 1. ]])
+
 -------------------------------------------------------------------------------
 Usage and Documentation
 -------------------------------------------------------------------------------
@@ -508,7 +609,7 @@ Acknowledgments
 -------------------------------------------------------------------------------
 
 This project is inspired by the remarkable work done by the `NumPy
-development team`_. It is a tribute to their contributions to the field of
+Development Team`_. It is a tribute to their contributions to the field of
 machine learning and the open-source community at large.
 
 -------------------------------------------------------------------------------
@@ -519,6 +620,6 @@ xsNumPy is licensed under the MIT License. See the `LICENSE`_ file for more
 details.
 
 .. _LICENSE: https://github.com/xames3/xsnumpy/blob/main/LICENSE
-.. _NumPy development team: https://numpy.org/doc/stable/dev/index.html
+.. _NumPy Development Team: https://numpy.org/doc/stable/dev/index.html
 .. _NumPy: https://numpy.org
 .. _pip: https://pip.pypa.io/en/stable/getting-started/
