@@ -1,6 +1,6 @@
 .. Author: Akshay Mestry <xa@mes3.dev>
 .. Created on: Monday, November 18 2024
-.. Last updated on: Sunday, January 05 2025
+.. Last updated on: Monday, January 06 2025
 
 ===============================================================================
 xsNumPy
@@ -618,6 +618,33 @@ Linear algebra
     >>> xp.power(a, b)
     array([[1. , 0. ], 
            [0. , 1. ]])
+
+Random Sampling
+===============================================================================
+
+- **xsnumpy.random.default_rng.** Construct a new Generator with the default
+  BitGenerator (PCG64).
+
+.. code-block:: python
+
+    >>> rng = xp.random.default_rng(12345)
+    >>> print(rng)
+    Generator(PCG64)
+    >>> rfloat = rng.random()
+    >>> rfloat
+    0.41661987254534116
+    >>> type(rfloat)
+    <class 'float'>
+    >>> rints = rng.integers(low=0, high=10, size=3)
+    >>> rints
+    array([0, 4, 5])
+    >>> type(rints[0])
+    <class 'int'>
+    >>> arr1 = rng.random((3, 3))
+    >>> arr1
+    array([[ 0.9317846894264221,   0.270244836807251,  0.4362284243106842], 
+           [ 0.3730638325214386,  0.8741743564605713,  0.2610900104045868], 
+           [ 0.6272147297859192,  0.6117693185806274, 0.18680904805660248]])
 
 -------------------------------------------------------------------------------
 Usage and Documentation
