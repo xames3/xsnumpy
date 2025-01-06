@@ -477,7 +477,9 @@ class ndarray:
                 int32
                 if all(
                     map(
-                        lambda x: isinstance(x, int), (self.dtype, other.dtype)
+                        lambda x: not x.numpy.startswith("float")
+                        and not x.numpy.startswith("bool"),
+                        (self.dtype, other.dtype),
                     )
                 )
                 else float32
@@ -534,7 +536,9 @@ class ndarray:
                 int32
                 if all(
                     map(
-                        lambda x: isinstance(x, int), (self.dtype, other.dtype)
+                        lambda x: not x.numpy.startswith("float")
+                        and not x.numpy.startswith("bool"),
+                        (self.dtype, other.dtype),
                     )
                 )
                 else float32
@@ -591,7 +595,9 @@ class ndarray:
                 int32
                 if all(
                     map(
-                        lambda x: isinstance(x, int), (self.dtype, other.dtype)
+                        lambda x: not x.numpy.startswith("float")
+                        and not x.numpy.startswith("bool"),
+                        (self.dtype, other.dtype),
                     )
                 )
                 else float32
@@ -646,16 +652,7 @@ class ndarray:
             out[:] = [x / other for x in self._data]
             return out
         elif isinstance(other, ndarray):
-            dtype = (
-                int32
-                if all(
-                    map(
-                        lambda x: isinstance(x, int), (self.dtype, other.dtype)
-                    )
-                )
-                else float32
-            )
-            out = ndarray(self.shape, dtype)
+            out = ndarray(self.shape, float32)
             if self.shape != other.shape:
                 raise ValueError(
                     "Operands couldn't broadcast together with shapes "
@@ -707,7 +704,9 @@ class ndarray:
                 int32
                 if all(
                     map(
-                        lambda x: isinstance(x, int), (self.dtype, other.dtype)
+                        lambda x: not x.numpy.startswith("float")
+                        and not x.numpy.startswith("bool"),
+                        (self.dtype, other.dtype),
                     )
                 )
                 else float32
@@ -762,7 +761,9 @@ class ndarray:
                 int32
                 if all(
                     map(
-                        lambda x: isinstance(x, int), (self.dtype, other.dtype)
+                        lambda x: not x.numpy.startswith("float")
+                        and not x.numpy.startswith("bool"),
+                        (self.dtype, other.dtype),
                     )
                 )
                 else float32
@@ -811,7 +812,9 @@ class ndarray:
                 int32
                 if all(
                     map(
-                        lambda x: isinstance(x, int), (self.dtype, other.dtype)
+                        lambda x: not x.numpy.startswith("float")
+                        and not x.numpy.startswith("bool"),
+                        (self.dtype, other.dtype),
                     )
                 )
                 else float32
@@ -828,6 +831,31 @@ class ndarray:
                 f"Unsupported operand type(s) for **: {type(self).__name__!r} "
                 f"and {type(other).__name__!r}"
             )
+        return out
+
+    def __matmul__(self, other: ndarray) -> ndarray:
+        """Perform matrix multiplication of the ndarray with another
+        ndarray.
+
+        :param other: The operand for matrix multiplication. Must be an
+            ndarray of the same shape.
+        :return: A new ndarray containing the result of the matrix
+            multiplication.
+        """
+        if isinstance(other, ndarray):
+            dtype = (
+                int32
+                if all(
+                    map(
+                        lambda x: not x.numpy.startswith("float")
+                        and not x.numpy.startswith("bool"),
+                        (self.dtype, other.dtype),
+                    )
+                )
+                else float32
+            )
+            out = ndarray(self.shape, dtype)
+            out[:] = xp.matmul(self, other)
         return out
 
     def __lt__(self, other: ndarray | int | builtins.float) -> ndarray:

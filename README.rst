@@ -57,7 +57,46 @@ N-dimensional array (ndarray)
   arrays with support for:
 
   - Arbitrary shapes and data types.
-  - Broadcasting for compatible operations.
+  - Broadcasting\*\* for compatible operations (limited).
+  - Arithmetic and comparison operations.
+
+.. code-block:: python
+
+    >>> import xsnumpy as xp
+    >>>
+    >>> a = xp.array([[1, 0], [0, 1]])
+    >>> b = xp.array([[4, 1], [2, 2]])
+    >>>
+    >>> a + b
+    array([[5, 1], 
+           [2, 3]])
+    >>> a - b
+    array([[-3, -1], 
+           [-2, -1]])
+    >>> a * b
+    array([[4, 0], 
+           [0, 2]])
+    >>> a / b
+    array([[0.25, 0.  ], 
+           [0.  ,  0.5]])
+    >>> a // b
+    array([[0, 0], 
+           [0, 0]])
+    >>> a ** b
+    array([[1, 0], 
+           [0, 1]])
+    >>> a % b
+    array([[1, 0], 
+           [0, 1]])
+    >>> a @ b
+    array([[4, 1], 
+           [2, 2]])
+    >>> a < b
+    array([[True, True], 
+           [True, True]])
+    >>> a >= b
+    array([[False, False], 
+           [False, False]])
 
 Array creation routines
 ===============================================================================
@@ -66,8 +105,6 @@ Array creation routines
 
 .. code-block:: python
 
-    >>> import xsnumpy as xp
-    >>> 
     >>> xp.array([[1, 2, 3], [4, 5, 6]])
     array([[1, 2, 3], 
            [4, 5, 6]])
@@ -592,7 +629,19 @@ each module and function, ensuring clarity and ease of understanding. Users
 are encouraged to delve into the code, experiment with it, and modify it to
 suit their learning curve.
 
+Since, the implementation doesn't rely on any external package, it will work
+with any CPython build v3.10 and higher. Technically, it should work on 3.9 and
+below as well but due to some syntactical and type-aliasing changes, it might
+not support. For instance, the typing module was significantly changed in
+3.10, hence some features like `types.GenericAlias` and using native types
+like `tuple`, `list`, etc. will not work. If you remove all the typing stuff,
+the code will work just fine, at least that's what I hope.
+
 **Note.** xsNumPy cannot and should not be used as an alternative to NumPy.
+Another important note is the fact, this implementation doesn't fully support
+array-broadcasting which is possibly one of the most important facet of NumPy.
+Although, the existing features work with arrays when either their shapes
+match or one of the array has ``n.dim`` is less than the other array.
 
 -------------------------------------------------------------------------------
 Contributions and Feedback
