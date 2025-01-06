@@ -4,7 +4,7 @@ xsNumPy Random
 
 Author: Akshay Mestry <xa@mes3.dev>
 Created on: Saturday, January 04 2025
-Last updated on: Saturday, January 04 2025
+Last updated on: Monday, January 06 2025
 
 This module implements pseudo-random number generators (PRNGs or RNGs)
 with ability to draw samples from a variety of probability
@@ -133,11 +133,11 @@ class Generator:
         if size is None:
             return self.generator.gauss(loc, scale)
         if isinstance(size, int):
-            out = ndarray((size,), int)
+            out = ndarray((size,))
             out[:] = [self.generator.gauss(loc, scale) for _ in range(size)]
             return out
         elif isinstance(size, tuple):
-            out = ndarray(size, int)
+            out = ndarray(size)
             N = range(max(size))
             for dim in itertools.product(N, N):
                 try:
