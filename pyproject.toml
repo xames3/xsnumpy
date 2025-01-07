@@ -1,18 +1,18 @@
 [build-system]
-requires = ["setuptools", "setuptools-scm"]
+requires = [ "setuptools", "setuptools-scm" ]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "xsnumpy"
-dynamic = ["version"]
-description = "A pure Python implementation of NumPy ndarray."
+dynamic = [ "version" ]
+description = "Basic and bare-bones functionality of NumPy just using pure Python."
 readme = "README.rst"
 requires-python = ">=3.10"
 license.file = "LICENSE"
 authors = [
   { name = "Akshay Mestry", email = "xa@mes3.dev" }
 ]
-keywords = ["python", "numpy"]
+keywords = [ "python", "numpy" ]
 classifiers = [
   "Development Status :: 5 - Production/Stable",
   "Intended Audience :: Developers",
@@ -23,8 +23,6 @@ classifiers = [
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
-  "Topic :: Documentation",
-  "Topic :: Software Development :: Documentation"
 ]
 urls.Code = "https://github.com/xames3/xsnumpy"
 urls.Download = "https://pypi.org/project/xsnumpy/"
@@ -32,10 +30,10 @@ urls.Homepage = "https://github.com/xames3/xsnumpy/"
 urls."Issue tracker" = "https://github.com/xames3/xsnumpy/issues"
 
 [tool.setuptools]
-packages = ["xsnumpy"]
+packages = [ "xsnumpy" ]
 
 [tool.setuptools.dynamic]
-version = {attr = "xsnumpy.version"}
+version = { attr = "xsnumpy.version" }
 
 [tool.black]
 line-length = 80
@@ -47,7 +45,7 @@ force_single_line = true
 force_sort_within_sections = false
 
 [tool.mypy]
-files = ["xsnumpy/*.py"]
+files = [ "xsnumpy/*.py" ]
 show_error_codes = true
 show_error_context = true
 pretty = true
@@ -59,7 +57,7 @@ warn_unused_configs = true
 check_untyped_defs = true
 disallow_incomplete_defs = true
 ignore_missing_imports = true
-disable_error_code = ["attr-defined", "index", "union-attr"]
+disable_error_code = [ "attr-defined", "index", "union-attr" ]
 
 [[tool.mypy.overrides]]
 module = [
@@ -67,11 +65,11 @@ module = [
   "xsnumpy._core.*",
   "xsnumpy._typing.*",
 ]
-disable_error_code = ["assignment", "method-assign", "name-defined"]
+disable_error_code = [ "assignment", "method-assign", "name-defined" ]
 
 [tool.tox]
-requires = ["tox>=4"]
-envlist = ["py312", "py311", "py310"]
+requires = [ "tox>=4" ]
+envlist = [ "py312", "py311", "py310" ]
 package = "editable"
 
 [tool.tox.env_run_base]
@@ -85,14 +83,14 @@ deps = [
   "typing_extensions",
 ]
 commands = [
-  ["black", "-q", {replace = "posargs", default = ["xsnumpy/"], extend = true}, "--line-length", "79"],
-  ["flake8", {replace = "posargs", default = ["xsnumpy/"], extend = true}, "--per-file-ignores", "__init__.py:F403,F405,E402", "--ignore", "E203,W503" ],
-  ["isort", "--sl", {replace = "posargs", default = ["xsnumpy/"], extend = true}],
-  ["mypy", {replace = "posargs", default = ["xsnumpy/"], extend = true}],
+  [ "black", "-q", {replace = "posargs", default = ["xsnumpy/"], extend = true}, "--line-length", "79" ],
+  [ "flake8", {replace = "posargs", default = ["xsnumpy/"], extend = true}, "--per-file-ignores", "__init__.py:F403,F405,E402", "--ignore", "E203,W503" ],
+  [ "isort", "--sl", {replace = "posargs", default = ["xsnumpy/"], extend = true} ],
+  [ "mypy", {replace = "posargs", default = ["xsnumpy/"], extend = true} ],
 ]
 
 [tool.tox.gh.python]
-"3.13" = ["3.13", "type", "pkg_meta"]
-"3.12" = ["3.12"]
-"3.11" = ["3.11"]
-"3.10" = ["3.10"]
+"3.13" = [ "3.13", "type", "pkg_meta" ]
+"3.12" = [ "3.12" ]
+"3.11" = [ "3.11" ]
+"3.10" = [ "3.10" ]
