@@ -4,7 +4,7 @@ xsNumPy N-Dimensional Array
 
 Author: Akshay Mestry <xa@mes3.dev>
 Created on: Monday, November 18 2024
-Last updated on: Sunday, January 05 2025
+Last updated on: Saturday, January 11 2025
 
 This module implements the core functionality of the `xsnumpy` package,
 providing the foundational `ndarray` class, which serves as the building
@@ -260,7 +260,7 @@ class ndarray:
         else:
             self._data = Buffer.from_buffer(buffer)
 
-    def _format_repr_as_str(
+    def format_repr(
         self,
         s: str,
         axis: int,
@@ -268,7 +268,7 @@ class ndarray:
         pad: int = 0,
         whitespace: int = 0,
     ) -> str:
-        """Format repr to mimic NumPy's ndarray as close as possible."""
+        """Method to mimic NumPy's ndarray as close as possible."""
         indent = min(2, max(0, (self.ndim - axis - 1)))
         if axis < len(self.shape):
             s += "["
@@ -276,9 +276,7 @@ class ndarray:
                 if idx > 0:
                     s += ("\n " + " " * pad + " " * axis) * indent
                 _oset = offset + val * self._strides[axis] // self.itemsize
-                s = self._format_repr_as_str(
-                    s, axis + 1, _oset, whitespace=whitespace
-                )
+                s = self.format_repr(s, axis + 1, _oset, whitespace=whitespace)
                 if idx < self.shape[axis] - 1:
                     s += ", "
             s += "]"
@@ -293,21 +291,21 @@ class ndarray:
 
     def __repr__(self) -> str:
         """Return a string representation of ndarray object."""
-        ws = max(len(str(self.data[idx])) for idx in range(self.size))
-        s = self._format_repr_as_str("", 0, self._offset, 6, ws)
+        whitespace = max(len(str(self.data[idx])) for idx in range(self.size))
+        formatted = self.format_repr("", 0, self._offset, 6, whitespace)
         if (
             self.dtype != float32
             and self.dtype != int32
             and self.dtype != bool
         ):
-            return f"array({s}, dtype={self.dtype.__str__()})"
+            return f"array({formatted}, dtype={self.dtype.__str__()})"
         else:
-            return f"array({s})"
+            return f"array({formatted})"
 
     def __str__(self) -> str:
         """Return a printable representation of ndarray object."""
-        ws = max(len(str(self.data[idx])) for idx in range(self.size))
-        return self._format_repr_as_str("", 0, self._offset, 0, ws)
+        whitespace = max(len(str(self.data[idx])) for idx in range(self.size))
+        return self.format_repr("", 0, self._offset, 0, whitespace)
 
     def __float__(self) -> None | builtins.float:
         """Convert the ndarray to a scalar float if it has exactly one
@@ -641,15 +639,15 @@ class ndarray:
         :raises ValueError: If `other` is an ndarray but its shape
             doesn't match `self.shape`.
         """
-        if other == 0:
-            raise ZeroDivisionError
-        if isinstance(other, int):
-            out = ndarray(self.shape, self.dtype)
-            out[:] = [x / other for x in self._data]
-            return out
-        elif isinstance(other, builtins.float):
+        if isinstance(other, (int, builtins.float)):
             out = ndarray(self.shape, float32)
-            out[:] = [x / other for x in self._data]
+            arr = []
+            for x in self._data:
+                try:
+                    arr.append(x / other)
+                except ZeroDivisionError:
+                    arr.append(xp.inf)
+            out[:] = arr
             return out
         elif isinstance(other, ndarray):
             out = ndarray(self.shape, float32)
@@ -689,15 +687,15 @@ class ndarray:
         :raises ValueError: If `other` is an ndarray but its shape
             doesn't match `self.shape`.
         """
-        if other == 0:
-            raise ZeroDivisionError
-        if isinstance(other, int):
-            out = ndarray(self.shape, self.dtype)
-            out[:] = [x // other for x in self._data]
-            return out
-        elif isinstance(other, builtins.float):
+        if isinstance(other, (int, builtins.float)):
             out = ndarray(self.shape, float32)
-            out[:] = [x // other for x in self._data]
+            arr = []
+            for x in self._data:
+                try:
+                    arr.append(x // other)
+                except ZeroDivisionError:
+                    arr.append(xp.inf)
+            out[:] = arr
             return out
         elif isinstance(other, ndarray):
             dtype = (
@@ -873,7 +871,8 @@ class ndarray:
         :raises TypeError: If `other` is neither a scalar nor an
             ndarray.
         :raises ValueError: If `other` is an ndarray but its shape
-            doesn't match `self.shape`."""
+            doesn't match `self.shape`.
+        """
         out = ndarray(self.shape, bool)
         if isinstance(other, (int, builtins.float)):
             out[:] = [x < other for x in self._data]
@@ -907,7 +906,8 @@ class ndarray:
         :raises TypeError: If `other` is neither a scalar nor an
             ndarray.
         :raises ValueError: If `other` is an ndarray but its shape
-            doesn't match `self.shape`."""
+            doesn't match `self.shape`.
+        """
         out = ndarray(self.shape, bool)
         if isinstance(other, (int, builtins.float)):
             out[:] = [x > other for x in self._data]
@@ -941,7 +941,8 @@ class ndarray:
         :raises TypeError: If `other` is neither a scalar nor an
             ndarray.
         :raises ValueError: If `other` is an ndarray but its shape
-            doesn't match `self.shape`."""
+            doesn't match `self.shape`.
+        """
         out = ndarray(self.shape, bool)
         if isinstance(other, (int, builtins.float)):
             out[:] = [x <= other for x in self._data]
@@ -975,7 +976,8 @@ class ndarray:
         :raises TypeError: If `other` is neither a scalar nor an
             ndarray.
         :raises ValueError: If `other` is an ndarray but its shape
-            doesn't match `self.shape`."""
+            doesn't match `self.shape`.
+        """
         out = ndarray(self.shape, bool)
         if isinstance(other, (int, builtins.float)):
             out[:] = [x >= other for x in self._data]
@@ -1403,7 +1405,6 @@ class ndarray:
     def view(
         self,
         dtype: None | DTypeLike = None,
-        type: None | t.Any = None,
     ) -> None | ndarray:
         """Create a new view of the ndarray with a specified data type.
 
@@ -1416,7 +1417,6 @@ class ndarray:
 
         :param dtype: The desired data type for the new view. If not
             provided, the current dtype is used.
-        :param type: Ignored in this implementation.
         :return: A new ndarray view with the specified dtype. Returns
             `None` if the view cannot be created.
         :raises ValueError: If the array is multidimensional and the

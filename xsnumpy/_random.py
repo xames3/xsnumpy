@@ -4,7 +4,7 @@ xsNumPy Random
 
 Author: Akshay Mestry <xa@mes3.dev>
 Created on: Saturday, January 04 2025
-Last updated on: Monday, January 06 2025
+Last updated on: Saturday, January 11 2025
 
 This module implements pseudo-random number generators (PRNGs or RNGs)
 with ability to draw samples from a variety of probability
@@ -45,7 +45,7 @@ class Generator:
     def random(
         self,
         size: None | int | _ShapeLike = None,
-        dtype: None | DTypeLike = None,
+        dtype: DTypeLike = None,
     ) -> ndarray | float:
         """Return random floats in the half-open interval [0.0, 1.0).
 

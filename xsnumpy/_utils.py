@@ -4,7 +4,7 @@ xsNumPy Utilities
 
 Author: Akshay Mestry <xa@mes3.dev>
 Created on: Monday, November 25 2024
-Last updated on: Saturday, January 04 2025
+Last updated on: Saturday, January 11 2025
 
 This module provides utility functions designed to streamline and
 enhance the development process within the xsNumPy library. These
@@ -23,6 +23,7 @@ from xsnumpy import array_function_dispatch
 if t.TYPE_CHECKING:
     from xsnumpy import ndarray
     from xsnumpy._typing import _ArrayType
+    from xsnumpy._typing import _ShapeLike
 
 __all__: list[str] = [
     "e",
@@ -124,7 +125,7 @@ def get_step_size(view: ndarray) -> int:
 
 
 @array_function_dispatch
-def calc_shape_from_obj(object: t.Any) -> tuple[int, ...]:
+def calc_shape_from_obj(object: t.Any) -> _ShapeLike:
     """Calculate the shape of a nested iterable object.
 
     This function recursively determines the dimensions of a nested
