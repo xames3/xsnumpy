@@ -4,7 +4,7 @@ xsNumPy Array Functions
 
 Author: Akshay Mestry <xa@mes3.dev>
 Created on: Friday, December 06 2024
-Last updated on: Sunday, January 05 2025
+Last updated on: Monday, January 13 2025
 
 This module provides essential array creation and initialization
 utilities for the `xsnumpy` package. It contains a suite of functions
@@ -72,9 +72,9 @@ from xsnumpy._utils import has_uniform_shape
 @array_function_dispatch
 def array(
     object: _ArrayType,
-    dtype: None | DTypeLike = None,
+    dtype: DTypeLike = None,
     *,
-    order: None | _OrderKACF = None,
+    order: _OrderKACF = None,
 ) -> ndarray:
     """Create an ndarray from a Python iterable.
 
@@ -96,33 +96,33 @@ def array(
     if not has_uniform_shape(object):
         raise ValueError("Input data is not uniformly nested")
     shape = calc_shape_from_obj(object)
-    arraylike: list[t.Any] = []
+    array_like: list[t.Any] = []
 
-    def _flatten(obj: _ArrayType) -> None:
+    def _flatten(data: _ArrayType) -> None:
         """Recursively flatten the input iterable."""
-        if isinstance(obj, t.Iterable):
-            for item in obj:
+        if isinstance(data, t.Iterable):
+            for item in data:
                 _flatten(item)
         else:
-            arraylike.append(obj)
+            array_like.append(data)
 
     _flatten(object)
     if dtype is None:
         dtype = (
             xp.int32
-            if all(map(lambda x: isinstance(x, int), arraylike))
+            if all(isinstance(idx, int) for idx in array_like)
             else xp.float32
         )
     out = ndarray(shape, dtype, order=order)
-    out[:] = arraylike
+    out[:] = array_like
     return out
 
 
 @array_function_dispatch
 def empty(
     shape: _ShapeLike,
-    dtype: None | DTypeLike = None,
-    order: None | _OrderKACF = None,
+    dtype: DTypeLike = None,
+    order: _OrderKACF = None,
 ) -> ndarray:
     """Create a new ndarray without initializing its values.
 
@@ -151,8 +151,8 @@ def empty(
 @array_function_dispatch
 def zeros(
     shape: _ShapeLike,
-    dtype: None | DTypeLike | _BaseDType = None,
-    order: None | _OrderKACF = None,
+    dtype: DTypeLike = None,
+    order: _OrderKACF = None,
 ) -> ndarray:
     """Create a new ndarray filled with zeros.
 
@@ -176,8 +176,8 @@ def zeros(
 @array_function_dispatch
 def zeros_like(
     a: ndarray,
-    dtype: None | DTypeLike = None,
-    order: None | _OrderKACF = None,
+    dtype: DTypeLike = None,
+    order: _OrderKACF = None,
     shape: None | _ShapeLike = None,
 ) -> ndarray:
     """Create a new array with the same shape and type as a given array,
@@ -209,8 +209,8 @@ def zeros_like(
 @array_function_dispatch
 def ones(
     shape: _ShapeLike,
-    dtype: None | DTypeLike = None,
-    order: None | _OrderKACF = None,
+    dtype: DTypeLike = None,
+    order: _OrderKACF = None,
 ) -> ndarray:
     """Create a new ndarray filled with ones.
 
@@ -236,8 +236,8 @@ def ones(
 @array_function_dispatch
 def ones_like(
     a: ndarray,
-    dtype: None | DTypeLike = None,
-    order: None | _OrderKACF = None,
+    dtype: DTypeLike = None,
+    order: _OrderKACF = None,
     shape: None | _ShapeLike = None,
 ) -> ndarray:
     """Create a new array with the same shape and type as a given array,
@@ -269,9 +269,9 @@ def ones_like(
 @array_function_dispatch
 def full(
     shape: _ShapeLike,
-    fill_value: int,
-    dtype: None | DTypeLike = None,
-    order: None | _OrderKACF = None,
+    fill_value: int | float,
+    dtype: DTypeLike = None,
+    order: _OrderKACF = None,
 ) -> ndarray:
     """Create a new ndarray filled with `fill_value`.
 
@@ -283,6 +283,7 @@ def full(
 
     :param shape: The desired shape of the array. Can be an int for
         1D arrays or a sequence of ints for multidimensional arrays.
+    :param fill_value: Value to be filled with in the ndarray.
     :param dtype: The desired data type of the array, defaults to
         `None` if not specified.
     :param order: The memory layout of the array, defaults to `None`.
@@ -299,8 +300,8 @@ def eye(
     N: int,
     M: None | int = None,
     k: int = 0,
-    dtype: None | DTypeLike = None,
-    order: None | _OrderKACF = None,
+    dtype: DTypeLike = None,
+    order: _OrderKACF = None,
 ) -> ndarray:
     """Create a 2-D identity matrix with ones on the main diagonal and
     zeros elsewhere.
@@ -337,8 +338,8 @@ def tri(
     N: int,
     M: None | int = None,
     k: int = 0,
-    dtype: None | DTypeLike | _BaseDType = None,
-    order: None | _OrderKACF = None,
+    dtype: DTypeLike | _BaseDType = None,
+    order: _OrderKACF = None,
 ) -> ndarray:
     """Generate a lower triangular matrix with ones below and on the
     main diagonal, and zeros elsewhere.
@@ -414,7 +415,7 @@ def diag(v: ndarray, k: int = 0) -> ndarray:
 
 
 @array_function_dispatch
-def arange(*args: t.Any, dtype: None | DTypeLike = None) -> ndarray:
+def arange(*args: t.Any, dtype: DTypeLike = None) -> ndarray:
     """Return evenly spaced values within a given range.
 
     The `arange` function generates a 1-D array containing evenly spaced
