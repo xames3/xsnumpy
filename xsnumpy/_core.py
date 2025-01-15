@@ -4,7 +4,7 @@ xsNumPy N-Dimensional Array
 
 Author: Akshay Mestry <xa@mes3.dev>
 Created on: Monday, November 18 2024
-Last updated on: Saturday, January 11 2025
+Last updated on: Wednesday, January 15 2025
 
 This module implements the core functionality of the `xsnumpy` package,
 providing the foundational `ndarray` class, which serves as the building
@@ -305,7 +305,9 @@ class ndarray:
     def __str__(self) -> str:
         """Return a printable representation of ndarray object."""
         whitespace = max(len(str(self.data[idx])) for idx in range(self.size))
-        return self.format_repr("", 0, self._offset, 0, whitespace)
+        return self.format_repr("", 0, self._offset, 0, whitespace).replace(
+            ",", ""
+        )
 
     def __float__(self) -> None | builtins.float:
         """Convert the ndarray to a scalar float if it has exactly one
