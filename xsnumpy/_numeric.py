@@ -4,7 +4,7 @@ xsNumPy Array Functions
 
 Author: Akshay Mestry <xa@mes3.dev>
 Created on: Friday, December 06 2024
-Last updated on: Monday, January 13 2025
+Last updated on: Wednesday, January 22 2025
 
 This module provides essential array creation and initialization
 utilities for the `xsnumpy` package. It contains a suite of functions
@@ -54,6 +54,7 @@ numerical computation, consider using NumPy directly.
 
 from __future__ import annotations
 
+import itertools
 import math
 import typing as t
 
@@ -67,11 +68,12 @@ from xsnumpy._typing import _OrderKACF
 from xsnumpy._typing import _ShapeLike
 from xsnumpy._utils import calc_shape_from_obj
 from xsnumpy._utils import has_uniform_shape
+from xsnumpy._utils import safe_range
 
 
 @array_function_dispatch
 def array(
-    object: _ArrayType,
+    object: _ArrayType | int | float,
     dtype: DTypeLike = None,
     *,
     order: _OrderKACF = None,
@@ -95,10 +97,10 @@ def array(
     """
     if not has_uniform_shape(object):
         raise ValueError("Input data is not uniformly nested")
-    shape = calc_shape_from_obj(object)
+    shape = shape if (shape := calc_shape_from_obj(object)) else (1,)
     array_like: list[t.Any] = []
 
-    def _flatten(data: _ArrayType) -> None:
+    def _flatten(data: _ArrayType | int | float) -> None:
         """Recursively flatten the input iterable."""
         if isinstance(data, t.Iterable):
             for item in data:
@@ -109,9 +111,9 @@ def array(
     _flatten(object)
     if dtype is None:
         dtype = (
-            xp.int32
+            xp.int64
             if all(isinstance(idx, int) for idx in array_like)
-            else xp.float32
+            else xp.float64
         )
     out = ndarray(shape, dtype, order=order)
     out[:] = array_like
@@ -120,7 +122,7 @@ def array(
 
 @array_function_dispatch
 def empty(
-    shape: _ShapeLike,
+    *shape: int,
     dtype: DTypeLike = None,
     order: _OrderKACF = None,
 ) -> ndarray:
@@ -145,12 +147,29 @@ def empty(
         [1] The contents of the returned array are random and should
             not be used without proper initialization.
     """
-    return ndarray(shape, dtype, order=order)
+    if len(shape) == 1:
+        out = ndarray(shape[0], dtype, order=order)
+        out[:] = [0.0 for _ in safe_range(shape)]
+        return out
+    elif len(shape) > 1:
+        out = ndarray(shape, dtype, order=order)
+        N = range(max(shape))
+        for dim in itertools.product(N, N):
+            try:
+                out[dim] = 0.0
+            except IndexError:
+                continue
+        return out
+    else:
+        raise TypeError(
+            f"Expected a sequence of integers or a single integer, "
+            f"got {shape!r}"
+        )
 
 
 @array_function_dispatch
 def zeros(
-    shape: _ShapeLike,
+    *shape: int,
     dtype: DTypeLike = None,
     order: _OrderKACF = None,
 ) -> ndarray:
@@ -170,7 +189,7 @@ def zeros(
     :return: An array initialized with zeros with the specified
         properties.
     """
-    return empty(shape, dtype, order)
+    return empty(*shape, dtype=dtype, order=order)
 
 
 @array_function_dispatch
@@ -203,12 +222,12 @@ def zeros_like(
     dtype = a.dtype if dtype is None else dtype
     if shape is None:
         shape = a.shape
-    return zeros(shape, dtype, order)
+    return zeros(*shape, dtype=dtype, order=order)
 
 
 @array_function_dispatch
 def ones(
-    shape: _ShapeLike,
+    *shape: int,
     dtype: DTypeLike = None,
     order: _OrderKACF = None,
 ) -> ndarray:
@@ -228,7 +247,7 @@ def ones(
     :return: An array initialized with ones with the specified
         properties.
     """
-    out = empty(shape, dtype, order)
+    out = empty(*shape, dtype=dtype, order=order)
     out.fill(1)
     return out
 
@@ -263,12 +282,12 @@ def ones_like(
     dtype = a.dtype if dtype is None else dtype
     if shape is None:
         shape = a.shape
-    return ones(shape, dtype, order)
+    return ones(*shape, dtype=dtype, order=order)
 
 
 @array_function_dispatch
 def full(
-    shape: _ShapeLike,
+    *shape: int,
     fill_value: int | float,
     dtype: DTypeLike = None,
     order: _OrderKACF = None,
@@ -290,7 +309,7 @@ def full(
     :return: An array initialized with ones with the specified
         properties.
     """
-    out = empty(shape, dtype, order)
+    out = empty(*shape, dtype=dtype, order=order)
     out.fill(fill_value)
     return out
 
@@ -324,7 +343,7 @@ def eye(
         raise ValueError("Size must be a positive integer")
     if M is None:
         M = N
-    out = zeros((N, M), dtype, order)
+    out = zeros(N, M, dtype=dtype, order=order)
     for idx in range(N):
         out[idx, idx + k] = 1
     return out
@@ -364,7 +383,7 @@ def tri(
         raise ValueError("Size must be a positive integer")
     if M is None:
         M = N
-    out = zeros((N, M), dtype, order)
+    out = zeros(N, M, dtype=dtype, order=order)
     for idx in range(N):
         start = max(0, idx + k)
         end = min(M, idx + 1 + k)
@@ -393,7 +412,7 @@ def diag(v: ndarray, k: int = 0) -> ndarray:
         size = len(v)
         nrows = size + max(0, k)
         ncols = size + max(0, -k)
-        out = zeros((nrows, ncols), dtype=v.dtype)
+        out = zeros(nrows, ncols, dtype=v.dtype)
         for idx in range(size):
             row, col = (idx + k, idx) if k < 0 else (idx, idx + k)
             out[row, col] = v[idx]
@@ -404,12 +423,12 @@ def diag(v: ndarray, k: int = 0) -> ndarray:
             start = max(0, k)
             end = min(rows, cols + k)
             size = max(0, end - start)
-            return array([v[i, i + k] for i in range(size)])
+            return array([v[dim, dim + k] for dim in range(size)])
         else:
             start = max(0, -k)
             end = min(rows + k, cols)
             size = max(0, end - start)
-            return array([v[i - k, i] for i in range(size)])
+            return array([v[dim - k, dim] for dim in range(size)])
     else:
         raise ValueError("Input array must be 1D or 2D")
 
@@ -441,11 +460,11 @@ def arange(*args: t.Any, dtype: DTypeLike = None) -> ndarray:
         raise ValueError("Step size must not be zero")
     size = max(0, math.ceil((stop - start) / step))
     dtype = (
-        "int32"
+        "int64"
         if all(isinstance(idx, int) for idx in (start, stop, step))
-        else "float32"
+        else "float64"
     )
-    out = empty((size,), dtype=dtype)
+    out = empty(size, dtype=dtype)
     out[:] = [start + idx * step for idx in range(size)]
     return out
 
