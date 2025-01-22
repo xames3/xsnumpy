@@ -4,7 +4,7 @@ xsNumPy Utilities
 
 Author: Akshay Mestry <xa@mes3.dev>
 Created on: Monday, November 25 2024
-Last updated on: Saturday, January 11 2025
+Last updated on: Wednesday, January 22 2025
 
 This module provides utility functions designed to streamline and
 enhance the development process within the xsNumPy library. These
@@ -184,3 +184,71 @@ def set_module(module: str) -> t.Callable[..., t.Any]:
         return func
 
     return decorator
+
+
+@array_function_dispatch
+def broadcast_shape(input: _ShapeLike, other: _ShapeLike) -> tuple[int, ...]:
+    """Calculate the broadcast-compatible shape for two array.
+
+    This function aligns the two shapes from the right, padding the
+    smaller shape with `1`s on the left. Then, it checks compatibility
+    for broadcasting::
+
+        - Each array has at least one dimension.
+        - Dimension sizes must either be equal, one of them is 1 or
+          one of them does not exist.
+
+    :param input: Shape of the first array.
+    :param other: Shape of the second array.
+    :return: The broadcast-compatible shape.
+    :raises ValueError: If the shapes are incompatible for broadcasting.
+    """
+    buffer: list[int] = []
+    r_input = list(reversed(input))
+    r_other = list(reversed(other))
+    maximum = max(len(r_input), len(r_other))
+    r_input.extend([1] * (maximum - len(r_input)))
+    r_other.extend([1] * (maximum - len(r_other)))
+    for idx, jdx in zip(r_input, r_other):
+        if idx == jdx or idx == 1 or jdx == 1:
+            buffer.append(max(idx, jdx))
+        else:
+            raise ValueError(
+                f"Operands couldn't broadcast together with shapes {input} "
+                f"and {other}"
+            )
+    return tuple(reversed(buffer))
+
+
+@array_function_dispatch
+def normal_exp(value: float) -> float:
+    """Dummy function to type safe compute exponentiations."""
+    return math.exp(value)
+
+
+@array_function_dispatch
+def safe_exp(value: float) -> float:
+    """Dummy function to type safe compute negative exponentiations."""
+    return math.exp(-value)
+
+
+@array_function_dispatch
+def safe_max(arg1: float, arg2: float = 0.0) -> float:
+    """Dummy function to type safe compute maximum values."""
+    return max(arg1, arg2)
+
+
+@array_function_dispatch
+def safe_round(number: float, ndigits: int = 4) -> float:
+    """Dummy function to type safe round floating values."""
+    return round(number, ndigits)
+
+
+@array_function_dispatch
+def safe_range(args: t.Any) -> range:
+    """Dummy function to type safe the range iterator."""
+    if len(args) == 0:
+        return range(0)
+    elif len(args) == 1:
+        return range(args[0])
+    return range(args)

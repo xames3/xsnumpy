@@ -4,7 +4,7 @@ xsNumPy N-Dimensional Array
 
 Author: Akshay Mestry <xa@mes3.dev>
 Created on: Monday, November 18 2024
-Last updated on: Wednesday, January 15 2025
+Last updated on: Wednesday, January 22 2025
 
 This module implements the core functionality of the `xsnumpy` package,
 providing the foundational `ndarray` class, which serves as the building
@@ -76,6 +76,7 @@ from xsnumpy._typing import _ShapeLike
 from xsnumpy._utils import calc_size
 from xsnumpy._utils import calc_strides
 from xsnumpy._utils import get_step_size
+from xsnumpy._utils import safe_round
 from xsnumpy._utils import set_module
 
 __all__: list[str] = [
@@ -92,6 +93,24 @@ __all__: list[str] = [
     "uint64",
     "uint8",
 ]
+
+
+class PrinterOptions:
+    """Printer options to mimic NumPy's way."""
+
+    precision: int = 4
+
+
+PRINT_OPTS = PrinterOptions()
+
+
+@array_function_dispatch
+def set_printoptions(precision: None | int = None) -> None:
+    """Set options for printing."""
+
+    if precision is None:
+        precision = 4
+    ndarray._print_opts.precision = precision
 
 
 def _dtype_repr(self: _BaseDType) -> str:
@@ -178,7 +197,7 @@ class ndarray:
     :param shape: The desired shape of the array. Can be an int for
         1D arrays or a sequence of ints for multidimensional arrays.
     :param dtype: The desired data type of the array, defaults to
-        `xs.float32` if not specified.
+        `xp.float32` if not specified.
     :param buffer: Object used to fill the array with data, defaults to
         `None`.
     :param offset: Offset of array data in buffer, defaults to `0`.
@@ -186,19 +205,11 @@ class ndarray:
     :param order: The memory layout of the array, defaults to `None`.
     """
 
-    __slots__: tuple[str, ...] = (
-        "_base",
-        "_data",
-        "_dtype",
-        "_itemsize",
-        "_offset",
-        "_shape",
-        "_strides",
-    )
+    _print_opts = PRINT_OPTS
 
     def __init__(
         self,
-        shape: _ShapeLike,
+        shape: _ShapeLike | int,
         dtype: None | DTypeLike | _BaseDType = float32,
         buffer: None | t.Any = None,
         offset: t.SupportsIndex = 0,
@@ -208,11 +219,11 @@ class ndarray:
         """Initialize an `ndarray` object from the provided shape."""
         if order is not None:
             raise RuntimeError(
-                f"{type(self).__name__} supports only C-order arrays; 'order'"
-                " must be None"
+                f"{type(self).__qualname__} supports only C-order arrays;"
+                " 'order' must be None"
             )
         if not isinstance(shape, Iterable):
-            raise TypeError("Shape must be either tuple or list of integers")
+            shape = (shape,)
         self._shape = tuple(int(dim) for dim in shape)
         if dtype is None:
             dtype = float32
@@ -267,8 +278,11 @@ class ndarray:
         offset: int,
         pad: int = 0,
         whitespace: int = 0,
+        only: builtins.bool = False,
     ) -> str:
         """Method to mimic NumPy's ndarray as close as possible."""
+        if only:
+            return str(self._data[0])
         indent = min(2, max(0, (self.ndim - axis - 1)))
         if axis < len(self.shape):
             s += "["
@@ -281,7 +295,7 @@ class ndarray:
                     s += ", "
             s += "]"
         else:
-            r = repr(self.data[offset])
+            r = repr(self._data[offset])
             if "." in r and r.endswith(".0"):
                 r = f"{r[:-1]:<{whitespace}}"
             else:
@@ -291,8 +305,9 @@ class ndarray:
 
     def __repr__(self) -> str:
         """Return a string representation of ndarray object."""
-        whitespace = max(len(str(self.data[idx])) for idx in range(self.size))
-        formatted = self.format_repr("", 0, self._offset, 6, whitespace)
+        whitespace = max(len(str(self._data[idx])) for idx in range(self.size))
+        only = len(self._data) == 1
+        formatted = self.format_repr("", 0, self._offset, 6, whitespace, only)
         if (
             self.dtype != float32
             and self.dtype != int32
@@ -304,10 +319,11 @@ class ndarray:
 
     def __str__(self) -> str:
         """Return a printable representation of ndarray object."""
-        whitespace = max(len(str(self.data[idx])) for idx in range(self.size))
-        return self.format_repr("", 0, self._offset, 0, whitespace).replace(
-            ",", ""
-        )
+        whitespace = max(len(str(self._data[idx])) for idx in range(self.size))
+        only = len(self._data) == 1
+        return self.format_repr(
+            "", 0, self._offset, 0, whitespace, only
+        ).replace(",", "")
 
     def __float__(self) -> None | builtins.float:
         """Convert the ndarray to a scalar float if it has exactly one
@@ -318,7 +334,7 @@ class ndarray:
         exactly one element.
         """
         if self.size == 1:
-            return builtins.float(self.data[self._offset])
+            return builtins.float(self._data[self._offset])
         else:
             raise TypeError("Only arrays of size 1 can be converted to scalar")
 
@@ -331,7 +347,7 @@ class ndarray:
         exactly one element.
         """
         if self.size == 1:
-            return int(self.data[self._offset])
+            return int(self._data[self._offset])
         else:
             raise TypeError("Only arrays of size 1 can be converted to scalar")
 
@@ -401,10 +417,8 @@ class ndarray:
             being updated.
         """
         offset, shape, strides = self._calculate_offset_and_strides(key)
-        # NOTE(xames3): If shape is empty, update the value directly in
-        # the data buffer.
         if not shape:
-            self._data[offset] = value
+            self._data[offset] = safe_round(value, self._print_opts.precision)
             return
         view = ndarray(
             shape,
@@ -415,7 +429,7 @@ class ndarray:
         )
         if isinstance(value, (builtins.float, int)):
             values = [value] * view.size
-        elif isinstance(value, (tuple, list)):
+        elif isinstance(value, t.Iterable):
             values = list(value)
         else:
             # TODO(xames3): Although this is fixed and properly
@@ -434,13 +448,20 @@ class ndarray:
             subview = subviews.pop(0)
             if step_size := get_step_size(subview):
                 block = values[idx : idx + subview.size]
+                converted: list[builtins.float | int] = []
+                for element in block:
+                    if not self.dtype.numpy.startswith(("float", "bool")):
+                        converted.append(int(element))
+                    else:
+                        element = round(element, self._print_opts.precision)
+                        converted.append(element)
                 subview._data[
                     slice(
                         subview._offset,
                         subview._offset + subview.size * step_size,
                         step_size,
                     )
-                ] = block
+                ] = converted
                 idx += subview.size
             else:
                 for dim in range(subview.shape[0]):
