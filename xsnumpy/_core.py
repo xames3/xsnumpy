@@ -81,7 +81,6 @@ from xsnumpy._utils import set_module
 
 __all__: list[str] = [
     "bool",
-    "float",
     "float32",
     "float64",
     "int16",
@@ -139,10 +138,9 @@ _supported_dtypes: tuple[_BaseDType, ...] = (
     (uint32 := _BaseDType("u4", "uint32", ctypes.c_uint32, 0)),
     (int64 := _BaseDType("i8", "int64", ctypes.c_int64, 0)),
     (uint64 := _BaseDType("u8", "uint64", ctypes.c_uint64, 0)),
-    (float := _BaseDType("f4", "float", ctypes.c_float, 0.0)),
+    (float32 := _BaseDType("f4", "float32", ctypes.c_float, 0.0)),
     (float64 := _BaseDType("f8", "float64", ctypes.c_double, 0.0)),
 )
-float32 = float
 
 for dtype in _supported_dtypes:
     globals()[dtype] = dtype
@@ -197,7 +195,7 @@ class ndarray:
     :param shape: The desired shape of the array. Can be an int for
         1D arrays or a sequence of ints for multidimensional arrays.
     :param dtype: The desired data type of the array, defaults to
-        `xp.float32` if not specified.
+        `xp.float64` if not specified.
     :param buffer: Object used to fill the array with data, defaults to
         `None`.
     :param offset: Offset of array data in buffer, defaults to `0`.
@@ -210,7 +208,7 @@ class ndarray:
     def __init__(
         self,
         shape: _ShapeLike | int,
-        dtype: None | DTypeLike | _BaseDType = float32,
+        dtype: None | DTypeLike | _BaseDType = float64,
         buffer: None | t.Any = None,
         offset: t.SupportsIndex = 0,
         strides: None | _ShapeLike = None,
@@ -226,7 +224,7 @@ class ndarray:
             shape = (shape,)
         self._shape = tuple(int(dim) for dim in shape)
         if dtype is None:
-            dtype = float32
+            dtype = float64
         elif isinstance(dtype, type):
             dtype = globals()[
                 f"{dtype.__name__}{'32' if dtype != builtins.bool else ''}"
@@ -286,11 +284,11 @@ class ndarray:
         indent = min(2, max(0, (self.ndim - axis - 1)))
         if axis < len(self.shape):
             s += "["
-            for idx, val in enumerate(range(self.shape[axis])):
+            for idx in range(self.shape[axis]):
                 if idx > 0:
                     s += ("\n " + " " * pad + " " * axis) * indent
-                _oset = offset + val * self._strides[axis] // self.itemsize
-                s = self.format_repr(s, axis + 1, _oset, whitespace=whitespace)
+                _oset = offset + idx * self._strides[axis] // self.itemsize
+                s = self.format_repr(s, axis + 1, _oset, pad, whitespace)
                 if idx < self.shape[axis] - 1:
                     s += ", "
             s += "]"
@@ -309,8 +307,8 @@ class ndarray:
         only = len(self._data) == 1
         formatted = self.format_repr("", 0, self._offset, 6, whitespace, only)
         if (
-            self.dtype != float32
-            and self.dtype != int32
+            self.dtype != float64
+            and self.dtype != int64
             and self.dtype != bool
         ):
             return f"array({formatted}, dtype={self.dtype.__str__()})"
@@ -325,7 +323,7 @@ class ndarray:
             "", 0, self._offset, 0, whitespace, only
         ).replace(",", "")
 
-    def __float__(self) -> None | builtins.float:
+    def __float__(self) -> None | float:
         """Convert the ndarray to a scalar float if it has exactly one
         element.
 
@@ -334,7 +332,7 @@ class ndarray:
         exactly one element.
         """
         if self.size == 1:
-            return builtins.float(self._data[self._offset])
+            return float(self._data[self._offset])
         else:
             raise TypeError("Only arrays of size 1 can be converted to scalar")
 
@@ -392,9 +390,7 @@ class ndarray:
     def __setitem__(
         self,
         key: int | slice | tuple[None | int | slice, ...],
-        value: (
-            builtins.float | int | t.Sequence[int | builtins.float] | ndarray
-        ),
+        value: float | int | t.Sequence[int | float] | ndarray,
     ) -> None:
         """Set the value of an element or a slice in the array.
 
@@ -427,7 +423,7 @@ class ndarray:
             offset=offset,
             strides=strides,
         )
-        if isinstance(value, (builtins.float, int)):
+        if isinstance(value, (float, int)):
             values = [value] * view.size
         elif isinstance(value, t.Iterable):
             values = list(value)
@@ -436,7 +432,13 @@ class ndarray:
             # implemented, I need to make it mypy compliant and remove
             # the disabling comment.
             if not isinstance(value, ndarray):
-                value = ndarray(value)  # type: ignore
+                value = ndarray(  # type: ignore
+                    value,
+                    self._dtype,
+                    buffer=self,
+                    offset=offset,
+                    strides=strides,
+                )
             values = value._flat()
         if view.size != len(values):
             raise ValueError(
@@ -448,7 +450,7 @@ class ndarray:
             subview = subviews.pop(0)
             if step_size := get_step_size(subview):
                 block = values[idx : idx + subview.size]
-                converted: list[builtins.float | int] = []
+                converted: list[float | int] = []
                 for element in block:
                     if not self.dtype.numpy.startswith(("float", "bool")):
                         converted.append(int(element))
@@ -468,7 +470,7 @@ class ndarray:
                     subviews.append(subview[dim])
         assert idx == len(values)
 
-    def __add__(self, other: ndarray | int | builtins.float) -> ndarray:
+    def __add__(self, other: ndarray | int | float) -> ndarray:
         """Perform element-wise addition of the ndarray with a scalar or
         another ndarray.
 
@@ -489,13 +491,13 @@ class ndarray:
             out = ndarray(self.shape, self.dtype)
             out[:] = [x + other for x in self._data]
             return out
-        elif isinstance(other, builtins.float):
-            out = ndarray(self.shape, float32)
+        elif isinstance(other, float):
+            out = ndarray(self.shape, float64)
             out[:] = [x + other for x in self._data]
             return out
         elif isinstance(other, ndarray):
             dtype = (
-                int32
+                int64
                 if all(
                     map(
                         lambda x: not x.numpy.startswith("float")
@@ -503,7 +505,7 @@ class ndarray:
                         (self.dtype, other.dtype),
                     )
                 )
-                else float32
+                else float64
             )
             out = ndarray(self.shape, dtype)
             if self.shape != other.shape:
@@ -519,7 +521,7 @@ class ndarray:
                 f"and {type(other).__name__!r}"
             )
 
-    def __radd__(self, other: ndarray | int | builtins.float) -> ndarray:
+    def __radd__(self, other: ndarray | int | float) -> ndarray:
         """Perform reverse addition, delegating to `__add__`.
 
         :param other: The left-hand operand.
@@ -527,7 +529,7 @@ class ndarray:
         """
         return self.__add__(other)
 
-    def __sub__(self, other: ndarray | int | builtins.float) -> ndarray:
+    def __sub__(self, other: ndarray | int | float) -> ndarray:
         """Perform element-wise subtraction of the ndarray with a scalar
         or another ndarray.
 
@@ -548,13 +550,13 @@ class ndarray:
             out = ndarray(self.shape, self.dtype)
             out[:] = [x - other for x in self._data]
             return out
-        elif isinstance(other, builtins.float):
-            out = ndarray(self.shape, float32)
+        elif isinstance(other, float):
+            out = ndarray(self.shape, float64)
             out[:] = [x - other for x in self._data]
             return out
         elif isinstance(other, ndarray):
             dtype = (
-                int32
+                int64
                 if all(
                     map(
                         lambda x: not x.numpy.startswith("float")
@@ -562,7 +564,7 @@ class ndarray:
                         (self.dtype, other.dtype),
                     )
                 )
-                else float32
+                else float64
             )
             out = ndarray(self.shape, dtype)
             if self.shape != other.shape:
@@ -578,7 +580,7 @@ class ndarray:
             )
         return out
 
-    def __rsub__(self, other: ndarray | int | builtins.float) -> ndarray:
+    def __rsub__(self, other: ndarray | int | float) -> ndarray:
         """Perform reverse subtraction, delegating to `__sub__`.
 
         :param other: The left-hand operand.
@@ -586,7 +588,7 @@ class ndarray:
         """
         return self.__sub__(other)
 
-    def __mul__(self, other: ndarray | int | builtins.float) -> ndarray:
+    def __mul__(self, other: ndarray | int | float) -> ndarray:
         """Perform element-wise multiplication of the ndarray with a
         scalar or another ndarray.
 
@@ -607,13 +609,13 @@ class ndarray:
             out = ndarray(self.shape, self.dtype)
             out[:] = [x * other for x in self._data]
             return out
-        elif isinstance(other, builtins.float):
-            out = ndarray(self.shape, float32)
+        elif isinstance(other, float):
+            out = ndarray(self.shape, float64)
             out[:] = [x * other for x in self._data]
             return out
         elif isinstance(other, ndarray):
             dtype = (
-                int32
+                int64
                 if all(
                     map(
                         lambda x: not x.numpy.startswith("float")
@@ -621,7 +623,7 @@ class ndarray:
                         (self.dtype, other.dtype),
                     )
                 )
-                else float32
+                else float64
             )
             out = ndarray(self.shape, dtype)
             if self.shape != other.shape:
@@ -637,7 +639,7 @@ class ndarray:
             )
         return out
 
-    def __rmul__(self, other: ndarray | int | builtins.float) -> ndarray:
+    def __rmul__(self, other: ndarray | int | float) -> ndarray:
         """Perform reverse multiplication, delegating to `__mul__`.
 
         :param other: The left-hand operand.
@@ -645,7 +647,7 @@ class ndarray:
         """
         return self.__mul__(other)
 
-    def __truediv__(self, other: ndarray | int | builtins.float) -> ndarray:
+    def __truediv__(self, other: ndarray | int | float) -> ndarray:
         """Perform element-wise division of the ndarray with a scalar or
         another ndarray.
 
@@ -662,8 +664,8 @@ class ndarray:
         :raises ValueError: If `other` is an ndarray but its shape
             doesn't match `self.shape`.
         """
-        if isinstance(other, (int, builtins.float)):
-            out = ndarray(self.shape, float32)
+        if isinstance(other, (int, float)):
+            out = ndarray(self.shape, float64)
             arr = []
             for x in self._data:
                 try:
@@ -673,7 +675,7 @@ class ndarray:
             out[:] = arr
             return out
         elif isinstance(other, ndarray):
-            out = ndarray(self.shape, float32)
+            out = ndarray(self.shape, float64)
             if self.shape != other.shape:
                 raise ValueError(
                     "Operands couldn't broadcast together with shapes "
@@ -693,7 +695,7 @@ class ndarray:
             )
         return out
 
-    def __floordiv__(self, other: ndarray | int | builtins.float) -> ndarray:
+    def __floordiv__(self, other: ndarray | int | float) -> ndarray:
         """Perform element-wise floor division of the ndarray with a
         scalar or another ndarray.
 
@@ -710,8 +712,8 @@ class ndarray:
         :raises ValueError: If `other` is an ndarray but its shape
             doesn't match `self.shape`.
         """
-        if isinstance(other, (int, builtins.float)):
-            out = ndarray(self.shape, float32)
+        if isinstance(other, (int, float)):
+            out = ndarray(self.shape, float64)
             arr = []
             for x in self._data:
                 try:
@@ -722,7 +724,7 @@ class ndarray:
             return out
         elif isinstance(other, ndarray):
             dtype = (
-                int32
+                int64
                 if all(
                     map(
                         lambda x: not x.numpy.startswith("float")
@@ -730,7 +732,7 @@ class ndarray:
                         (self.dtype, other.dtype),
                     )
                 )
-                else float32
+                else float64
             )
             out = ndarray(self.shape, dtype)
             if self.shape != other.shape:
@@ -752,7 +754,7 @@ class ndarray:
             )
         return out
 
-    def __mod__(self, other: ndarray | int | builtins.float) -> ndarray:
+    def __mod__(self, other: ndarray | int | float) -> ndarray:
         """Perform element-wise modulo operation of the ndarray with a
         scalar or another ndarray.
 
@@ -773,13 +775,13 @@ class ndarray:
             out = ndarray(self.shape, self.dtype)
             out[:] = [x % other for x in self._data]
             return out
-        elif isinstance(other, builtins.float):
-            out = ndarray(self.shape, float32)
+        elif isinstance(other, float):
+            out = ndarray(self.shape, float64)
             out[:] = [x % other for x in self._data]
             return out
         elif isinstance(other, ndarray):
             dtype = (
-                int32
+                int64
                 if all(
                     map(
                         lambda x: not x.numpy.startswith("float")
@@ -787,7 +789,7 @@ class ndarray:
                         (self.dtype, other.dtype),
                     )
                 )
-                else float32
+                else float64
             )
             out = ndarray(self.shape, dtype)
             if self.shape != other.shape:
@@ -803,7 +805,7 @@ class ndarray:
             )
         return out
 
-    def __pow__(self, other: ndarray | int | builtins.float) -> ndarray:
+    def __pow__(self, other: ndarray | int | float) -> ndarray:
         """Perform element-wise exponentation of the ndarray with a
         scalar or another ndarray.
 
@@ -824,13 +826,13 @@ class ndarray:
             out = ndarray(self.shape, self.dtype)
             out[:] = [x**other for x in self._data]
             return out
-        elif isinstance(other, builtins.float):
-            out = ndarray(self.shape, float32)
+        elif isinstance(other, float):
+            out = ndarray(self.shape, float64)
             out[:] = [x**other for x in self._data]
             return out
         elif isinstance(other, ndarray):
             dtype = (
-                int32
+                int64
                 if all(
                     map(
                         lambda x: not x.numpy.startswith("float")
@@ -838,7 +840,7 @@ class ndarray:
                         (self.dtype, other.dtype),
                     )
                 )
-                else float32
+                else float64
             )
             out = ndarray(self.shape, dtype)
             if self.shape != other.shape:
@@ -865,7 +867,7 @@ class ndarray:
         """
         if isinstance(other, ndarray):
             dtype = (
-                int32
+                int64
                 if all(
                     map(
                         lambda x: not x.numpy.startswith("float")
@@ -873,13 +875,13 @@ class ndarray:
                         (self.dtype, other.dtype),
                     )
                 )
-                else float32
+                else float64
             )
             out = ndarray(self.shape, dtype)
             out[:] = xp.matmul(self, other)
         return out
 
-    def __lt__(self, other: ndarray | int | builtins.float) -> ndarray:
+    def __lt__(self, other: ndarray | int | float) -> ndarray:
         """Perform element-wise less-than operation of the ndarray with
         a scalar or another ndarray.
 
@@ -897,7 +899,7 @@ class ndarray:
             doesn't match `self.shape`.
         """
         out = ndarray(self.shape, bool)
-        if isinstance(other, (int, builtins.float)):
+        if isinstance(other, (int, float)):
             out[:] = [x < other for x in self._data]
             return out
         elif isinstance(other, ndarray):
@@ -914,7 +916,7 @@ class ndarray:
             )
         return out
 
-    def __gt__(self, other: ndarray | int | builtins.float) -> ndarray:
+    def __gt__(self, other: ndarray | int | float) -> ndarray:
         """Perform element-wise greater-than operation of the ndarray
         with a scalar or another ndarray.
 
@@ -932,7 +934,7 @@ class ndarray:
             doesn't match `self.shape`.
         """
         out = ndarray(self.shape, bool)
-        if isinstance(other, (int, builtins.float)):
+        if isinstance(other, (int, float)):
             out[:] = [x > other for x in self._data]
             return out
         elif isinstance(other, ndarray):
@@ -949,7 +951,7 @@ class ndarray:
             )
         return out
 
-    def __le__(self, other: ndarray | int | builtins.float) -> ndarray:
+    def __le__(self, other: ndarray | int | float) -> ndarray:
         """Perform element-wise less-than-equal operation of the ndarray
         with a scalar or another ndarray.
 
@@ -967,7 +969,7 @@ class ndarray:
             doesn't match `self.shape`.
         """
         out = ndarray(self.shape, bool)
-        if isinstance(other, (int, builtins.float)):
+        if isinstance(other, (int, float)):
             out[:] = [x <= other for x in self._data]
             return out
         elif isinstance(other, ndarray):
@@ -984,7 +986,7 @@ class ndarray:
             )
         return out
 
-    def __ge__(self, other: ndarray | int | builtins.float) -> ndarray:
+    def __ge__(self, other: ndarray | int | float) -> ndarray:
         """Perform element-wise greater-than-equal operation of the
         ndarray with a scalar or another ndarray.
 
@@ -1002,7 +1004,7 @@ class ndarray:
             doesn't match `self.shape`.
         """
         out = ndarray(self.shape, bool)
-        if isinstance(other, (int, builtins.float)):
+        if isinstance(other, (int, float)):
             out[:] = [x >= other for x in self._data]
             return out
         elif isinstance(other, ndarray):
@@ -1075,7 +1077,7 @@ class ndarray:
         strides.extend(self._strides[axis:])
         return offset, tuple(shape), tuple(strides)
 
-    def _flat(self) -> list[int | builtins.float]:
+    def _flat(self) -> list[int | float]:
         """Flatten the ndarray and return all its elements in a list.
 
         This method traverses through the ndarray and collects its
@@ -1086,7 +1088,7 @@ class ndarray:
 
         :return: A list containing all elements in the ndarray.
         """
-        values: list[int | builtins.float] = []
+        values: list[int | float] = []
         subviews = [self]
         while subviews:
             subview = subviews.pop(0)
@@ -1187,7 +1189,7 @@ class ndarray:
         return self._dtype
 
     @property
-    def flat(self) -> t.Generator[int | builtins.float]:
+    def flat(self) -> t.Generator[int | float]:
         """Flatten the ndarray and yield its elements one by one.
 
         This property allows you to iterate over all elements in the
@@ -1287,8 +1289,8 @@ class ndarray:
 
     def clip(
         self,
-        a_min: builtins.float | int | ndarray,
-        a_max: builtins.float | int | ndarray,
+        a_min: float | int | ndarray,
+        a_max: float | int | ndarray,
         out: None | ndarray = None,
     ) -> ndarray:
         """Clip (limit) the values in the array.
@@ -1310,9 +1312,9 @@ class ndarray:
         :raises ValueError: If output shape doesn't match as the input
             array.
         """
-        if not isinstance(a_min, (int, builtins.float, ndarray)):
+        if not isinstance(a_min, (int, float, ndarray)):
             raise TypeError("`a_min` must be a scalar or an ndarray")
-        if not isinstance(a_max, (int, builtins.float, ndarray)):
+        if not isinstance(a_max, (int, float, ndarray)):
             raise TypeError("`a_max` must be a scalar or an ndarray")
         if isinstance(a_min, ndarray) and a_min.shape != self.shape:
             raise ValueError(
@@ -1357,7 +1359,7 @@ class ndarray:
         """
         return self.astype(self.dtype)
 
-    def fill(self, value: int | builtins.float) -> None:
+    def fill(self, value: int | float) -> None:
         """Fill the entire ndarray with a scalar value.
 
         This method assigns the given scalar value to all elements in
@@ -1374,7 +1376,7 @@ class ndarray:
             [2] The method uses slicing (`self[:] = value`) to
                 efficiently set all elements to the specified value.
         """
-        if not isinstance(value, (int, builtins.float)):
+        if not isinstance(value, (int, float)):
             raise ValueError("Value must be an integer or a float")
         self[:] = value
 
@@ -1474,7 +1476,7 @@ class ndarray:
         else:
             raise ValueError("Arrays can only be viewed with the same dtype")
 
-    def min(self, axis: None | int = None) -> int | builtins.float | ndarray:
+    def min(self, axis: None | int = None) -> int | float | ndarray:
         """Return the minimum along a given axis."""
         axis = axis if axis is not None else -1
         if axis < 0:
@@ -1492,7 +1494,7 @@ class ndarray:
             out[idx] = min(element for element in self[tuple(indices)])
         return out
 
-    def max(self, axis: None | int = None) -> int | builtins.float | ndarray:
+    def max(self, axis: None | int = None) -> int | float | ndarray:
         """Return the maximum along a given axis."""
         axis = axis if axis is not None else -1
         if axis < 0:
@@ -1510,7 +1512,7 @@ class ndarray:
             out[idx] = max(element for element in self[tuple(indices)])
         return out
 
-    def sum(self, axis: None | int = None) -> int | builtins.float | ndarray:
+    def sum(self, axis: None | int = None) -> int | float | ndarray:
         """Return the sum of the ndarray along a given axis."""
         axis = axis if axis is not None else -1
         if axis < 0:
@@ -1528,7 +1530,7 @@ class ndarray:
             out[idx] = sum(element for element in self[tuple(indices)])
         return out
 
-    def prod(self, axis: None | int = None) -> int | builtins.float | ndarray:
+    def prod(self, axis: None | int = None) -> int | float | ndarray:
         """Return the product of the ndarray along a given axis."""
         axis = axis if axis is not None else -1
         if axis < 0:
@@ -1546,7 +1548,7 @@ class ndarray:
             out[idx] = math.prod(element for element in self[tuple(indices)])
         return out
 
-    def mean(self, axis: None | int = None) -> builtins.float | ndarray:
+    def mean(self, axis: None | int = None) -> float | ndarray:
         """Return the mean of the ndarray along a given axis."""
         if axis is None or axis < 0:
             return self.sum(axis) / self.size
@@ -1556,7 +1558,7 @@ class ndarray:
                 f"{self.ndim} dimensions"
             )
         shape = tuple(dim for idx, dim in enumerate(self.shape) if idx != axis)
-        out = ndarray(shape, dtype=float32)
+        out = ndarray(shape, dtype=float64)
         indices = [slice(None)] * self.ndim
         for idx in ndindex(*shape):
             indices = list(idx[:axis]) + [slice(None)] + list(idx[axis:])
