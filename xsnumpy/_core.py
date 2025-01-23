@@ -4,7 +4,7 @@ xsNumPy N-Dimensional Array
 
 Author: Akshay Mestry <xa@mes3.dev>
 Created on: Monday, November 18 2024
-Last updated on: Wednesday, January 22 2025
+Last updated on: Thursday, January 23 2025
 
 This module implements the core functionality of the `xsnumpy` package,
 providing the foundational `ndarray` class, which serves as the building
@@ -68,14 +68,15 @@ import typing as t
 from collections import namedtuple
 from collections.abc import Iterable
 
-import xsnumpy as xp
 from xsnumpy import array_function_dispatch
 from xsnumpy._typing import DTypeLike
 from xsnumpy._typing import _OrderKACF
 from xsnumpy._typing import _ShapeLike
+from xsnumpy._utils import broadcast_shape
 from xsnumpy._utils import calc_size
 from xsnumpy._utils import calc_strides
 from xsnumpy._utils import get_step_size
+from xsnumpy._utils import safe_range
 from xsnumpy._utils import safe_round
 from xsnumpy._utils import set_module
 
@@ -470,6 +471,20 @@ class ndarray:
                     subviews.append(subview[dim])
         assert idx == len(values)
 
+    def broadcast_to(self, size: _ShapeLike | tuple[int, ...]) -> ndarray:
+        """Broadcast the tensor to the target shape."""
+        if self.shape == size:
+            return self
+        if len(size) < len(self.shape):
+            raise ValueError(f"Cannot broadcast {self.shape} to {size}")
+        data = self._data[:]
+        for idx in range(len(size)):
+            if idx >= len(self.shape) or self.shape[idx] == 1:
+                data = data * size[idx]
+        out = ndarray(size, self.dtype)
+        out._data = data
+        return out
+
     def __add__(self, other: ndarray | int | float) -> ndarray:
         """Perform element-wise addition of the ndarray with a scalar or
         another ndarray.
@@ -487,39 +502,34 @@ class ndarray:
         :raises ValueError: If `other` is an ndarray but its shape
             doesn't match `self.shape`.
         """
-        if isinstance(other, int):
-            out = ndarray(self.shape, self.dtype)
-            out[:] = [x + other for x in self._data]
-            return out
-        elif isinstance(other, float):
-            out = ndarray(self.shape, float64)
-            out[:] = [x + other for x in self._data]
-            return out
-        elif isinstance(other, ndarray):
+        out: ndarray
+        if isinstance(other, (int, float)):
             dtype = (
-                int64
-                if all(
-                    map(
-                        lambda x: not x.numpy.startswith("float")
-                        and not x.numpy.startswith("bool"),
-                        (self.dtype, other.dtype),
-                    )
-                )
-                else float64
+                float64
+                if isinstance(other, float)
+                or self.dtype.numpy.startswith("float")
+                else int64
             )
             out = ndarray(self.shape, dtype)
-            if self.shape != other.shape:
-                raise ValueError(
-                    "Operands couldn't broadcast together with shapes "
-                    f"{self.shape} {other.shape}"
-                )
+            out[:] = [data + other for data in self._data]
+        elif isinstance(other, ndarray):
+            dtype = (
+                float64
+                if self.dtype.numpy.startswith("float")
+                or other.dtype.numpy.startswith("float")
+                else int64
+            )
+            shape = broadcast_shape(self.shape, other.shape)
+            self = self.broadcast_to(shape)
+            other = other.broadcast_to(shape)
+            out = ndarray(shape, dtype)
             out[:] = [x + y for x, y in zip(self.flat, other.flat)]
-            return out
         else:
             raise TypeError(
                 f"Unsupported operand type(s) for +: {type(self).__name__!r} "
                 f"and {type(other).__name__!r}"
             )
+        return out
 
     def __radd__(self, other: ndarray | int | float) -> ndarray:
         """Perform reverse addition, delegating to `__add__`.
@@ -546,32 +556,27 @@ class ndarray:
         :raises ValueError: If `other` is an ndarray but its shape
             doesn't match `self.shape`.
         """
-        if isinstance(other, int):
-            out = ndarray(self.shape, self.dtype)
-            out[:] = [x - other for x in self._data]
-            return out
-        elif isinstance(other, float):
-            out = ndarray(self.shape, float64)
-            out[:] = [x - other for x in self._data]
-            return out
-        elif isinstance(other, ndarray):
+        out: ndarray
+        if isinstance(other, (int, float)):
             dtype = (
-                int64
-                if all(
-                    map(
-                        lambda x: not x.numpy.startswith("float")
-                        and not x.numpy.startswith("bool"),
-                        (self.dtype, other.dtype),
-                    )
-                )
-                else float64
+                float64
+                if isinstance(other, float)
+                or self.dtype.numpy.startswith("float")
+                else int64
             )
             out = ndarray(self.shape, dtype)
-            if self.shape != other.shape:
-                raise ValueError(
-                    "Operands couldn't broadcast together with shapes "
-                    f"{self.shape} {other.shape}"
-                )
+            out[:] = [data - other for data in self._data]
+        elif isinstance(other, ndarray):
+            dtype = (
+                float64
+                if self.dtype.numpy.startswith("float")
+                or other.dtype.numpy.startswith("float")
+                else int64
+            )
+            shape = broadcast_shape(self.shape, other.shape)
+            self = self.broadcast_to(shape)
+            other = other.broadcast_to(shape)
+            out = ndarray(shape, dtype)
             out[:] = [x - y for x, y in zip(self.flat, other.flat)]
         else:
             raise TypeError(
@@ -605,32 +610,27 @@ class ndarray:
         :raises ValueError: If `other` is an ndarray but its shape
             doesn't match `self.shape`.
         """
-        if isinstance(other, int):
-            out = ndarray(self.shape, self.dtype)
-            out[:] = [x * other for x in self._data]
-            return out
-        elif isinstance(other, float):
-            out = ndarray(self.shape, float64)
-            out[:] = [x * other for x in self._data]
-            return out
-        elif isinstance(other, ndarray):
+        out: ndarray
+        if isinstance(other, (int, float)):
             dtype = (
-                int64
-                if all(
-                    map(
-                        lambda x: not x.numpy.startswith("float")
-                        and not x.numpy.startswith("bool"),
-                        (self.dtype, other.dtype),
-                    )
-                )
-                else float64
+                float64
+                if isinstance(other, float)
+                or self.dtype.numpy.startswith("float")
+                else int64
             )
             out = ndarray(self.shape, dtype)
-            if self.shape != other.shape:
-                raise ValueError(
-                    "Operands couldn't broadcast together with shapes "
-                    f"{self.shape} {other.shape}"
-                )
+            out[:] = [data * other for data in self._data]
+        elif isinstance(other, ndarray):
+            dtype = (
+                float64
+                if self.dtype.numpy.startswith("float")
+                or other.dtype.numpy.startswith("float")
+                else int64
+            )
+            shape = broadcast_shape(self.shape, other.shape)
+            self = self.broadcast_to(shape)
+            other = other.broadcast_to(shape)
+            out = ndarray(shape, dtype)
             out[:] = [x * y for x, y in zip(self.flat, other.flat)]
         else:
             raise TypeError(
@@ -664,30 +664,28 @@ class ndarray:
         :raises ValueError: If `other` is an ndarray but its shape
             doesn't match `self.shape`.
         """
+        out: ndarray
         if isinstance(other, (int, float)):
-            out = ndarray(self.shape, float64)
-            arr = []
-            for x in self._data:
+            data = []
+            for idx in self._data:
                 try:
-                    arr.append(x / other)
+                    data.append(idx / other)
                 except ZeroDivisionError:
-                    arr.append(xp.inf)
-            out[:] = arr
-            return out
+                    data.append(float("inf"))
+            out = ndarray(self.shape, self.dtype)
+            out[:] = data
         elif isinstance(other, ndarray):
-            out = ndarray(self.shape, float64)
-            if self.shape != other.shape:
-                raise ValueError(
-                    "Operands couldn't broadcast together with shapes "
-                    f"{self.shape} {other.shape}"
-                )
-            arr = []
+            shape = broadcast_shape(self.shape, other.shape)
+            self = self.broadcast_to(shape)
+            other = other.broadcast_to(shape)
+            out = ndarray(shape, self.dtype)
+            data = []
             for x, y in zip(self.flat, other.flat):
                 try:
-                    arr.append(x / y)
+                    data.append(x / y)
                 except ZeroDivisionError:
-                    arr.append(xp.inf)
-            out[:] = arr
+                    data.append(float("inf"))
+            out[:] = data
         else:
             raise TypeError(
                 f"Unsupported operand type(s) for /: {type(self).__name__!r} "
@@ -712,41 +710,28 @@ class ndarray:
         :raises ValueError: If `other` is an ndarray but its shape
             doesn't match `self.shape`.
         """
+        out: ndarray
         if isinstance(other, (int, float)):
-            out = ndarray(self.shape, float64)
-            arr = []
-            for x in self._data:
+            data = []
+            for idx in self._data:
                 try:
-                    arr.append(x // other)
+                    data.append(idx // other)
                 except ZeroDivisionError:
-                    arr.append(xp.inf)
-            out[:] = arr
-            return out
+                    data.append(float("inf"))
+            out = ndarray(self.shape, self.dtype)
+            out[:] = data
         elif isinstance(other, ndarray):
-            dtype = (
-                int64
-                if all(
-                    map(
-                        lambda x: not x.numpy.startswith("float")
-                        and not x.numpy.startswith("bool"),
-                        (self.dtype, other.dtype),
-                    )
-                )
-                else float64
-            )
-            out = ndarray(self.shape, dtype)
-            if self.shape != other.shape:
-                raise ValueError(
-                    "Operands couldn't broadcast together with shapes "
-                    f"{self.shape} {other.shape}"
-                )
-            arr = []
+            shape = broadcast_shape(self.shape, other.shape)
+            self = self.broadcast_to(shape)
+            other = other.broadcast_to(shape)
+            out = ndarray(shape, self.dtype)
+            data = []
             for x, y in zip(self.flat, other.flat):
                 try:
-                    arr.append(x // y)
+                    data.append(x // y)
                 except ZeroDivisionError:
-                    arr.append(xp.inf)
-            out[:] = arr
+                    data.append(float("inf"))
+            out[:] = data
         else:
             raise TypeError(
                 f"Unsupported operand type(s) for //: {type(self).__name__!r} "
@@ -771,32 +756,27 @@ class ndarray:
         :raises ValueError: If `other` is an ndarray but its shape
             doesn't match `self.shape`.
         """
-        if isinstance(other, int):
-            out = ndarray(self.shape, self.dtype)
-            out[:] = [x % other for x in self._data]
-            return out
-        elif isinstance(other, float):
-            out = ndarray(self.shape, float64)
-            out[:] = [x % other for x in self._data]
-            return out
-        elif isinstance(other, ndarray):
+        out: ndarray
+        if isinstance(other, (int, float)):
             dtype = (
-                int64
-                if all(
-                    map(
-                        lambda x: not x.numpy.startswith("float")
-                        and not x.numpy.startswith("bool"),
-                        (self.dtype, other.dtype),
-                    )
-                )
-                else float64
+                float64
+                if isinstance(other, float)
+                or self.dtype.numpy.startswith("float")
+                else int64
             )
             out = ndarray(self.shape, dtype)
-            if self.shape != other.shape:
-                raise ValueError(
-                    "Operands couldn't broadcast together with shapes "
-                    f"{self.shape} {other.shape}"
-                )
+            out[:] = [data % other for data in self._data]
+        elif isinstance(other, ndarray):
+            dtype = (
+                float64
+                if self.dtype.numpy.startswith("float")
+                or other.dtype.numpy.startswith("float")
+                else int64
+            )
+            shape = broadcast_shape(self.shape, other.shape)
+            self = self.broadcast_to(shape)
+            other = other.broadcast_to(shape)
+            out = ndarray(shape, dtype)
             out[:] = [x % y for x, y in zip(self.flat, other.flat)]
         else:
             raise TypeError(
@@ -822,32 +802,27 @@ class ndarray:
         :raises ValueError: If `other` is an ndarray but its shape
             doesn't match `self.shape`.
         """
-        if isinstance(other, int):
-            out = ndarray(self.shape, self.dtype)
-            out[:] = [x**other for x in self._data]
-            return out
-        elif isinstance(other, float):
-            out = ndarray(self.shape, float64)
-            out[:] = [x**other for x in self._data]
-            return out
-        elif isinstance(other, ndarray):
+        out: ndarray
+        if isinstance(other, (int, float)):
             dtype = (
-                int64
-                if all(
-                    map(
-                        lambda x: not x.numpy.startswith("float")
-                        and not x.numpy.startswith("bool"),
-                        (self.dtype, other.dtype),
-                    )
-                )
-                else float64
+                float64
+                if isinstance(other, float)
+                or self.dtype.numpy.startswith("float")
+                else int64
             )
             out = ndarray(self.shape, dtype)
-            if self.shape != other.shape:
-                raise ValueError(
-                    "Operands couldn't broadcast together with shapes "
-                    f"{self.shape} {other.shape}"
-                )
+            out[:] = [data**other for data in self._data]
+        elif isinstance(other, ndarray):
+            dtype = (
+                float64
+                if self.dtype.numpy.startswith("float")
+                or other.dtype.numpy.startswith("float")
+                else int64
+            )
+            shape = broadcast_shape(self.shape, other.shape)
+            self = self.broadcast_to(shape)
+            other = other.broadcast_to(shape)
+            out = ndarray(shape, dtype)
             out[:] = [x**y for x, y in zip(self.flat, other.flat)]
         else:
             raise TypeError(
@@ -865,20 +840,55 @@ class ndarray:
         :return: A new ndarray containing the result of the matrix
             multiplication.
         """
-        if isinstance(other, ndarray):
-            dtype = (
-                int64
-                if all(
-                    map(
-                        lambda x: not x.numpy.startswith("float")
-                        and not x.numpy.startswith("bool"),
-                        (self.dtype, other.dtype),
-                    )
-                )
-                else float64
+        if not isinstance(other, ndarray):
+            raise TypeError(
+                f"Unsupported operand type(s) for @: {type(self).__name__!r} "
+                f"and {type(other).__name__!r}"
             )
-            out = ndarray(self.shape, dtype)
-            out[:] = xp.matmul(self, other)
+        dtype = (
+            float64
+            if self.dtype.numpy.startswith("float")
+            or other.dtype.numpy.startswith("float")
+            else int64
+        )
+        if self.ndim == 1 and other.ndim == 1:
+            if self.shape[0] != other.shape[0]:
+                raise ValueError(
+                    "Shapes of 1D tensors must be the same for dot product"
+                )
+            out = ndarray(1, dtype)
+            out[:] = sum(
+                self[idx] * other[idx] for idx in range(self.shape[0])
+            )
+        elif self.ndim == 2 or other.ndim == 2:
+            if self.shape[1] != other.shape[0]:
+                raise ValueError(
+                    "Shapes are not aligned for matrix multiplication"
+                )
+            out = ndarray((self.shape[0], other.shape[1]), dtype)
+            for idx in range(out.shape[0]):
+                for jdx in range(out.shape[1]):
+                    out[idx, jdx] = sum(
+                        self[idx, kdx] * other[kdx, jdx]
+                        for kdx in range(self.shape[1])
+                    )
+        elif self.ndim > 2 or other.ndim > 2:
+            shape = broadcast_shape(self.shape[:-2], other.shape[:-2]) + (
+                self.shape[-2],
+                other.shape[-1],
+            )
+            self = self.broadcast_to(shape[:-2] + self.shape[-2:])
+            other = other.broadcast_to(shape[:-2] + self.shape[-2:])
+            out = ndarray(shape, dtype)
+            for batch in safe_range(out.shape[:-2]):
+                for idx in range(out.shape[-2]):
+                    for jdx in range(out.shape[-1]):
+                        out[batch, idx, jdx] = sum(
+                            self[batch, idx, kdx] * other[batch, kdx, jdx]
+                            for kdx in range(self.shape[-1])
+                        )
+        else:
+            raise ValueError("Invalid shapes for dot product")
         return out
 
     def __lt__(self, other: ndarray | int | float) -> ndarray:
@@ -901,7 +911,6 @@ class ndarray:
         out = ndarray(self.shape, bool)
         if isinstance(other, (int, float)):
             out[:] = [x < other for x in self._data]
-            return out
         elif isinstance(other, ndarray):
             if self.shape != other.shape:
                 raise ValueError(
@@ -936,7 +945,6 @@ class ndarray:
         out = ndarray(self.shape, bool)
         if isinstance(other, (int, float)):
             out[:] = [x > other for x in self._data]
-            return out
         elif isinstance(other, ndarray):
             if self.shape != other.shape:
                 raise ValueError(
@@ -971,7 +979,6 @@ class ndarray:
         out = ndarray(self.shape, bool)
         if isinstance(other, (int, float)):
             out[:] = [x <= other for x in self._data]
-            return out
         elif isinstance(other, ndarray):
             if self.shape != other.shape:
                 raise ValueError(
@@ -1006,7 +1013,6 @@ class ndarray:
         out = ndarray(self.shape, bool)
         if isinstance(other, (int, float)):
             out[:] = [x >= other for x in self._data]
-            return out
         elif isinstance(other, ndarray):
             if self.shape != other.shape:
                 raise ValueError(
@@ -1384,7 +1390,7 @@ class ndarray:
         """Return a copy of the array collapsed into one dimension."""
         if order is not None:
             raise ValueError("Order needs to be None")
-        out = ndarray((self.size,), self.dtype)
+        out = ndarray(self.size, self.dtype)
         out[:] = self
         return out
 
@@ -1472,7 +1478,7 @@ class ndarray:
             itemsize = int(_convert_dtype(dtype, "short")[-1])
             size = self.nbytes // itemsize
             offset = (self._offset * self.itemsize) // itemsize
-            return ndarray((size,), dtype, buffer=self, offset=offset)
+            return ndarray(size, dtype, buffer=self, offset=offset)
         else:
             raise ValueError("Arrays can only be viewed with the same dtype")
 
