@@ -3,119 +3,47 @@ import pytest
 
 import xsnumpy as xp
 
-array_0r1c = xp.array([*range(10)])
-array_1rnc = xp.array([[*range(10)]])
-array_2r1c = xp.array([[1], [1]])
-array_2rnc = xp.array([[*range(10)], [*range(10)]])
-array_3t1r1c = xp.array([[[1]], [[1]], [[1]]])
-array_3t1rnc = xp.array([[[*range(10)]], [[*range(10)]], [[*range(10)]]])
-array_3t2r1c = xp.array([[[1], [1]], [[1], [1]], [[1], [1]]])
-array_3t2rnc = xp.array(
-    [
-        [[*range(10)], [*range(10)]],
-        [[*range(10)], [*range(10)]],
-        [[*range(10)], [*range(10)]],
-    ]
+
+def make_arrays(params):
+    values = []
+    for module in (xp, np):
+        values.append(getattr(module, "array")(params))
+    return values
+
+
+xarray_0r1c, narray_0r1c = make_arrays(params=[*range(10)])
+xarray_1rnc, narray_1rnc = make_arrays(params=[[*range(10)]])
+xarray_2r1c, narray_2r1c = make_arrays(params=[[1] * 2])
+xarray_2rnc, narray_2rnc = make_arrays(params=[[*range(10)] * 2])
+xarray_3t1r1c, narray_3t1r1c = make_arrays(params=[[[1]], [[1]], [[1]]])
+xarray_3t1rnc, narray_3t1rnc = make_arrays(params=[[[*range(10)]] * 3])
+xarray_3t2r1c, narray_3t2r1c = make_arrays(params=[[[1], [1]] * 3])
+xarray_3t2rnc, narray_3t2rnc = make_arrays(
+    params=[[[*range(10)], [*range(10)]] * 3]
 )
 
 
 @pytest.mark.parametrize(
-    ("array", "shape"),
+    ("xarray", "narray"),
     (
-        (array_0r1c, (10,)),
-        (array_1rnc, (1, 10)),
-        (array_2r1c, (2, 1)),
-        (array_2rnc, (2, 10)),
-        (array_3t1r1c, (3, 1, 1)),
-        (array_3t1rnc, (3, 1, 10)),
-        (array_3t2r1c, (3, 2, 1)),
-        (array_3t2rnc, (3, 2, 10)),
+        (xarray_0r1c, narray_0r1c),
+        (xarray_1rnc, narray_1rnc),
+        (xarray_2r1c, narray_2r1c),
+        (xarray_2rnc, narray_2rnc),
+        (xarray_3t1r1c, narray_3t1r1c),
+        (xarray_3t1rnc, narray_3t1rnc),
+        (xarray_3t2r1c, narray_3t2r1c),
+        (xarray_3t2rnc, narray_3t2rnc),
     ),
 )
-def test_array_shapes(array, shape):
-    assert array.shape == shape
-
-
-@pytest.mark.parametrize(
-    ("array", "strides"),
-    (
-        (array_0r1c, (4,)),
-        (array_1rnc, (40, 4)),
-        (array_2r1c, (4, 4)),
-        (array_2rnc, (40, 4)),
-        (array_3t1r1c, (4, 4, 4)),
-        (array_3t1rnc, (40, 40, 4)),
-        (array_3t2r1c, (8, 4, 4)),
-        (array_3t2rnc, (80, 40, 4)),
-    ),
-)
-def test_array_strides(array, strides):
-    assert array.strides == strides
-
-
-@pytest.mark.parametrize(
-    ("array", "ndim"),
-    (
-        (array_0r1c, 1),
-        (array_1rnc, 2),
-        (array_2r1c, 2),
-        (array_2rnc, 2),
-        (array_3t1r1c, 3),
-        (array_3t1rnc, 3),
-        (array_3t2r1c, 3),
-        (array_3t2rnc, 3),
-    ),
-)
-def test_array_ndim(array, ndim):
-    assert array.ndim == ndim
-
-
-@pytest.mark.parametrize(
-    ("array", "size"),
-    (
-        (array_0r1c, 10),
-        (array_1rnc, 10),
-        (array_2r1c, 2),
-        (array_2rnc, 20),
-        (array_3t1r1c, 3),
-        (array_3t1rnc, 30),
-        (array_3t2r1c, 6),
-        (array_3t2rnc, 60),
-    ),
-)
-def test_array_size(array, size):
-    assert array.size == size
-
-
-@pytest.mark.parametrize(
-    ("array", "itemsize"),
-    (
-        (array_0r1c, 4),
-        (array_1rnc, 4),
-        (array_2r1c, 4),
-        (array_2rnc, 4),
-        (array_3t1r1c, 4),
-        (array_3t1rnc, 4),
-        (array_3t2r1c, 4),
-        (array_3t2rnc, 4),
-    ),
-)
-def test_array_itemsize(array, itemsize):
-    assert array.itemsize == itemsize
-
-
-@pytest.mark.parametrize(
-    ("array", "nbytes"),
-    (
-        (array_0r1c, 40),
-        (array_1rnc, 40),
-        (array_2r1c, 8),
-        (array_2rnc, 80),
-        (array_3t1r1c, 12),
-        (array_3t1rnc, 120),
-        (array_3t2r1c, 24),
-        (array_3t2rnc, 240),
-    ),
-)
-def test_array_nbytes(array, nbytes):
-    assert array.nbytes == nbytes
+def test_attributes(xarray, narray):
+    assert xarray.shape == narray.shape
+    assert xarray.strides == narray.strides
+    assert xarray.ndim == narray.ndim
+    assert xarray.ndim == narray.ndim
+    assert xarray.size == narray.size
+    assert xarray.itemsize == narray.itemsize
+    assert xarray.nbytes == narray.nbytes
+    assert xarray.__str__().replace("\n", "").replace(
+        " ", ""
+    ) == narray.__str__().replace("\n", "").replace(" ", "")
