@@ -1,6 +1,6 @@
 .. Author: Akshay Mestry <xa@mes3.dev>
 .. Created on: Monday, November 18 2024
-.. Last updated on: Monday, January 06 2025
+.. Last updated on: Friday, January 24 2025
 
 ===============================================================================
 xsNumPy
@@ -57,7 +57,7 @@ N-dimensional array (ndarray)
   arrays with support for:
 
   - Arbitrary shapes and data types.
-  - Broadcasting\*\* for compatible operations (limited).
+  - Broadcasting for compatible operations.
   - Arithmetic and comparison operations.
 
 .. code-block:: python
@@ -110,8 +110,8 @@ Array creation routines
            [4, 5, 6]])
     >>> xp.array([1, 2, 3.0])
     array([1. , 2. , 3. ])
-    >>> xp.array([1, 2, 3], dtype=xp.bool)
-    array([True, True, True])
+    >>> xp.array([1, 0, 2], dtype=xp.bool)
+    array([True, False, True])
 
 - **xsnumpy.empty.** Create an uninitialized array of the given shape.
 
@@ -619,8 +619,14 @@ Linear algebra
     array([[1. , 0. ], 
            [0. , 1. ]])
 
-Random Sampling
+Random Sampling and Miscellaneous
 ===============================================================================
+
+- **xsnumpy.set_printoptions.** Set printing precision for decimal values.
+
+.. code-block:: python
+
+    >>> xp.set_printoptions(precision=4)
 
 - **xsnumpy.random.default_rng.** Construct a new Generator with the default
   BitGenerator (PCG64).
@@ -642,9 +648,9 @@ Random Sampling
     <class 'int'>
     >>> arr1 = rng.random((3, 3))
     >>> arr1
-    array([[ 0.9317846894264221,   0.270244836807251,  0.4362284243106842], 
-           [ 0.3730638325214386,  0.8741743564605713,  0.2610900104045868], 
-           [ 0.6272147297859192,  0.6117693185806274, 0.18680904805660248]])
+    array([[ 0.9317, 0.2702, 0.43622], 
+           [ 0.3730, 0.8741, 0.26109], 
+           [ 0.6272, 0.6117, 0.18680]])
 
 -------------------------------------------------------------------------------
 Usage and Documentation
@@ -656,19 +662,23 @@ each module and function, ensuring clarity and ease of understanding. Users
 are encouraged to delve into the code, experiment with it, and modify it to
 suit their learning curve.
 
-Since, the implementation doesn't rely on any external package, it will work
+Since, the implementation doesn't rely on any external packages, it will work
 with any CPython build v3.10 and higher. Technically, it should work on 3.9 and
-below as well but due to some syntactical and type-aliasing changes, it might
-not support. For instance, the typing module was significantly changed in
-3.10, hence some features like `types.GenericAlias` and using native types
-like `tuple`, `list`, etc. will not work. If you remove all the typing stuff,
-the code will work just fine, at least that's what I hope.
+below as well but due to some syntactical and type-aliasing changes, it will
+not support it directly. For instance, the typing module was significantly
+changed in 3.10, hence some features like ``types.GenericAlias`` and using
+native types like ``tuple``, ``list``, etc. will not work. If you choose to
+remove all the typing stuff, the code will work just fine, at least that's what
+I hope.
 
 **Note.** xsNumPy cannot and should not be used as an alternative to NumPy.
-Another important note is the fact, this implementation doesn't fully support
-array-broadcasting which is possibly one of the most important facet of NumPy.
-Although, the existing features work with arrays when either their shapes
-match or one of the array has ``n.dim`` is less than the other array.
+|ss| Another important note is the fact, this implementation doesn't fully
+support array-broadcasting which is possibly one of the most important facet
+of NumPy. Although, the existing features work with arrays when either their
+shapes match or one of the array has ``n.dim`` is less than the other array.
+\ |se|\
+
+**Update.** Broadcasting is now supported!
 
 -------------------------------------------------------------------------------
 Contributions and Feedback
@@ -699,3 +709,11 @@ details.
 .. _NumPy Development Team: https://numpy.org/doc/stable/dev/index.html
 .. _NumPy: https://numpy.org
 .. _pip: https://pip.pypa.io/en/stable/getting-started/
+
+.. |ss| raw:: html
+
+    <strike>
+
+.. |se| raw:: html
+
+    </strike>
