@@ -4,7 +4,7 @@ xsNumPy N-Dimensional Array
 
 Author: Akshay Mestry <xa@mes3.dev>
 Created on: Monday, November 18 2024
-Last updated on: Thursday, January 23 2025
+Last updated on: Sunday, February 02 2025
 
 This module implements the core functionality of the `xsnumpy` package,
 providing the foundational `ndarray` class, which serves as the building
@@ -202,6 +202,8 @@ class ndarray:
     :param offset: Offset of array data in buffer, defaults to `0`.
     :param strides: Strides of data in memory, defaults to `None`.
     :param order: The memory layout of the array, defaults to `None`.
+    :raises RuntimeError: If an unsupported order is specified.
+    :raises ValueError: If invalid strides or offsets are provided.
     """
 
     _print_opts = PRINT_OPTS
@@ -382,7 +384,7 @@ class ndarray:
             return self._data[offset]
         return ndarray(
             shape,
-            self._dtype,
+            self.dtype,
             buffer=self,
             offset=offset,
             strides=strides,
@@ -419,7 +421,7 @@ class ndarray:
             return
         view = ndarray(
             shape,
-            self._dtype,
+            self.dtype,
             buffer=self,
             offset=offset,
             strides=strides,
@@ -429,13 +431,10 @@ class ndarray:
         elif isinstance(value, t.Iterable):
             values = list(value)
         else:
-            # TODO(xames3): Although this is fixed and properly
-            # implemented, I need to make it mypy compliant and remove
-            # the disabling comment.
             if not isinstance(value, ndarray):
                 value = ndarray(  # type: ignore
                     value,
-                    self._dtype,
+                    self.dtype,
                     buffer=self,
                     offset=offset,
                     strides=strides,
@@ -472,7 +471,7 @@ class ndarray:
         assert idx == len(values)
 
     def broadcast_to(self, size: _ShapeLike | tuple[int, ...]) -> ndarray:
-        """Broadcast the tensor to the target shape."""
+        """Broadcast the array to the target shape."""
         if self.shape == size:
             return self
         if len(size) < len(self.shape):
@@ -665,8 +664,8 @@ class ndarray:
             doesn't match `self.shape`.
         """
         out: ndarray
+        data: list[int | float] = []
         if isinstance(other, (int, float)):
-            data = []
             for idx in self._data:
                 try:
                     data.append(idx / other)
@@ -679,7 +678,6 @@ class ndarray:
             self = self.broadcast_to(shape)
             other = other.broadcast_to(shape)
             out = ndarray(shape, self.dtype)
-            data = []
             for x, y in zip(self.flat, other.flat):
                 try:
                     data.append(x / y)
@@ -711,8 +709,8 @@ class ndarray:
             doesn't match `self.shape`.
         """
         out: ndarray
+        data: list[int | float] = []
         if isinstance(other, (int, float)):
-            data = []
             for idx in self._data:
                 try:
                     data.append(idx // other)
@@ -725,7 +723,6 @@ class ndarray:
             self = self.broadcast_to(shape)
             other = other.broadcast_to(shape)
             out = ndarray(shape, self.dtype)
-            data = []
             for x, y in zip(self.flat, other.flat):
                 try:
                     data.append(x // y)
